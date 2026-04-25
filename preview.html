@@ -44,13 +44,66 @@ const COLORS = {
   raised:    "#21262d",
   border:    "#30363d",
   text:      "#e6edf3",
-  textSec:   "#8b949e",
-  textMute:  "#484f58",
+  textSec:   "#9ba6b1",
+  textMute:  "#6b7280",
   green:     "#3fb950",
   red:       "#f85149",
   blue:      "#58a6ff",
-  gold:      "#d29922",
+  gold:      "#f0b429",
 };
+
+// Type scale (px). Tuned for arm's-length tablet viewing at a STEM fair.
+const TYPE = {
+  title:        34,
+  teamNameLg:   26,
+  teamNameMd:   22,
+  probHero:     72,
+  probSticky:   56,
+  resultName:   32,
+  factorLabel:  18,
+  factorDesc:   15,
+  body:         15,
+  pillLabel:    12,
+  pillValue:    16,
+  caps:         13,
+  small:        12,
+};
+
+// === Color contrast helpers (WCAG-aware) ===
+function _hexToRgb(hex) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function _rgbToHex(r, g, b) {
+  const c = (x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0");
+  return "#" + c(r) + c(g) + c(b);
+}
+function relLum(hex) {
+  const [r, g, b] = _hexToRgb(hex).map((v) => v / 255);
+  const f = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+function contrastRatio(a, b) {
+  const L1 = relLum(a), L2 = relLum(b);
+  const hi = Math.max(L1, L2), lo = Math.min(L1, L2);
+  return (hi + 0.05) / (lo + 0.05);
+}
+function lighten(hex, amount) {
+  const [r, g, b] = _hexToRgb(hex);
+  return _rgbToHex(r + amount * 255, g + amount * 255, b + amount * 255);
+}
+// Pick a foreground color for `team` against `bg` that meets WCAG AA (4.5:1).
+// Try primary → secondary → progressively lightened primary.
+function fgColor(team, bg = COLORS.surface) {
+  if (!team) return COLORS.text;
+  const p = team.primary;
+  if (contrastRatio(p, bg) >= 4.5) return p;
+  const s = team.secondary;
+  if (s && contrastRatio(s, bg) >= 4.5) return s;
+  let c = p;
+  for (let i = 0; i < 14 && contrastRatio(c, bg) < 4.5; i++) c = lighten(c, 0.07);
+  return c;
+}
 
 const ICON_MAP = {
   Home, Trophy, TrendingUp, Star, Shield, Zap, Target, Lock,
@@ -3329,6 +3382,20 @@ function injectStylesOnce() {
       0%   { background-position: -200% 0; }
       100% { background-position: 200% 0; }
     }
+    .nfl-focusable:focus-visible {
+      outline: 3px solid #58a6ff;
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+    select.nfl-focusable:focus-visible,
+    button.nfl-focusable:focus-visible { outline-offset: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   `;
   document.head.appendChild(el);
 }
@@ -3344,10 +3411,36 @@ const DIVISIONS = [
   ["NFC", "West",  ["ARI", "LAR", "SEA", "SF"]],
 ];
 
+// === TeamTile (abbreviation chip — strong team mnemonic) ===
+function TeamTile({ team, size = 56 }) {
+  if (!team) return null;
+  // White abbr on solid primary by default; if primary is too light, fall back to dark text.
+  const onPrimary = contrastRatio("#ffffff", team.primary) >= 3.5 ? "#ffffff" : "#0d1117";
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: size, height: size, borderRadius: 12, flexShrink: 0,
+        background: team.primary,
+        color: onPrimary,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 900, fontSize: Math.round(size * 0.36),
+        letterSpacing: -0.5, lineHeight: 1,
+        border: `2px solid ${team.secondary || COLORS.border}`,
+        boxShadow: `inset 0 0 0 2px rgba(255,255,255,0.08)`,
+        fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+      }}
+    >
+      {team.abbr}
+    </div>
+  );
+}
+
 // === TeamPicker ===
 function TeamPicker({ value, onChange, excludeId, side, allTeams }) {
   const team = allTeams.find((t) => t.id === value);
   const accent = team ? team.primary : COLORS.border;
+  const teamFg = team ? fgColor(team) : COLORS.text;
   const sortedDivs = DIVISIONS.map(([conf, div, abbrs]) => {
     const teams = abbrs
       .map((a) => allTeams.find((t) => t.abbr === a))
@@ -3361,32 +3454,40 @@ function TeamPicker({ value, onChange, excludeId, side, allTeams }) {
       style={{
         background: COLORS.surface,
         border: `0.5px solid ${COLORS.border}`,
-        borderRadius: 12,
-        padding: 16,
-        borderLeft: side === "left" ? `4px solid ${accent}` : `0.5px solid ${COLORS.border}`,
-        borderRight: side === "right" ? `4px solid ${accent}` : `0.5px solid ${COLORS.border}`,
-        minHeight: 220,
-        display: "flex", flexDirection: "column", gap: 12,
+        borderRadius: 14,
+        padding: 18,
+        borderLeft: side === "left" ? `5px solid ${accent}` : `0.5px solid ${COLORS.border}`,
+        borderRight: side === "right" ? `5px solid ${accent}` : `0.5px solid ${COLORS.border}`,
+        minHeight: 240,
+        display: "flex", flexDirection: "column", gap: 14,
       }}
     >
       <div
         style={{
-          fontSize: 11, fontWeight: 600, letterSpacing: 1.5,
-          color: COLORS.textMute, textTransform: "uppercase",
+          fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1,
+          color: COLORS.textSec, textTransform: "uppercase",
         }}
       >
         {side === "left" ? "Team A" : "Team B"}
       </div>
       <div style={{ position: "relative" }}>
+        <label
+          htmlFor={`nfl-pick-${side}`}
+          style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}
+        >
+          {side === "left" ? "Choose Team A" : "Choose Team B"}
+        </label>
         <select
+          id={`nfl-pick-${side}`}
+          className="nfl-focusable"
           value={value || ""}
           onChange={(e) => onChange(e.target.value || null)}
           style={{
-            width: "100%", padding: "10px 36px 10px 12px",
+            width: "100%", padding: "16px 48px 16px 16px",
             background: COLORS.raised, color: COLORS.text,
-            border: `1px solid ${COLORS.border}`, borderRadius: 8,
-            fontSize: 14, fontWeight: 500, appearance: "none",
-            cursor: "pointer", outline: "none",
+            border: `1px solid ${COLORS.border}`, borderRadius: 10,
+            fontSize: 17, fontWeight: 600, appearance: "none",
+            cursor: "pointer", outline: "none", minHeight: 52,
           }}
         >
           <option value="">— Choose a team —</option>
@@ -3401,52 +3502,54 @@ function TeamPicker({ value, onChange, excludeId, side, allTeams }) {
           ))}
         </select>
         <ChevronDown
-          size={16}
+          size={22}
           style={{
-            position: "absolute", right: 12, top: "50%",
+            position: "absolute", right: 14, top: "50%",
             transform: "translateY(-50%)", color: COLORS.textSec, pointerEvents: "none",
           }}
         />
       </div>
       {team ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div
             style={{
-              background: `${team.primary}14`,
-              padding: "10px 12px", borderRadius: 8,
-              borderLeft: `3px solid ${team.primary}`,
+              background: `${team.primary}1f`,
+              padding: "12px 14px", borderRadius: 10,
+              borderLeft: `4px solid ${team.primary}`,
+              display: "flex", alignItems: "center", gap: 12,
             }}
           >
-            <div style={{ fontSize: 22, fontWeight: 700, color: team.primary, lineHeight: 1.1 }}>
-              {team.name}
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textSec, marginTop: 4 }}>
-              {team.conference} {team.division} · {team.homeField.stadium}
+            <TeamTile team={team} size={48} />
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: TYPE.teamNameLg, fontWeight: 800,
+                  color: teamFg, lineHeight: 1.05,
+                  textShadow: `0 1px 0 rgba(0,0,0,0.4)`,
+                }}
+              >
+                {team.name}
+              </div>
+              <div
+                style={{
+                  fontSize: TYPE.small, color: COLORS.textSec,
+                  marginTop: 4, fontWeight: 500,
+                }}
+              >
+                {team.conference} {team.division} · {team.homeField.stadium}
+              </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Pill>{team.record.w}-{team.record.l}{team.record.t ? `-${team.record.t}` : ""}</Pill>
+            <Pill emphasis>
+              {team.record.w}-{team.record.l}{team.record.t ? `-${team.record.t}` : ""}
+            </Pill>
             <Pill>QB: {team.qb.name}</Pill>
             <Pill>{team.pointsPerGame.toFixed(1)} PPG</Pill>
           </div>
-          <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}>
-            <span
-              style={{
-                width: 14, height: 14, borderRadius: 3,
-                background: team.primary, border: `1px solid ${COLORS.border}`,
-              }}
-            />
-            <span
-              style={{
-                width: 14, height: 14, borderRadius: 3,
-                background: team.secondary, border: `1px solid ${COLORS.border}`,
-              }}
-            />
-            <span style={{ fontSize: 11, color: COLORS.textMute, marginLeft: 4 }}>team colors</span>
-          </div>
         </div>
       ) : (
-        <div style={{ color: COLORS.textMute, fontSize: 13, fontStyle: "italic" }}>
+        <div style={{ color: COLORS.textSec, fontSize: 14, fontStyle: "italic" }}>
           Pick a team from the list above.
         </div>
       )}
@@ -3454,13 +3557,15 @@ function TeamPicker({ value, onChange, excludeId, side, allTeams }) {
   );
 }
 
-function Pill({ children }) {
+function Pill({ children, emphasis }) {
   return (
     <span
       style={{
-        padding: "4px 10px", background: COLORS.raised,
-        border: `1px solid ${COLORS.border}`, borderRadius: 999,
-        fontSize: 12, color: COLORS.text, fontWeight: 500,
+        padding: "6px 12px",
+        background: emphasis ? COLORS.raised : COLORS.bg,
+        border: `1px solid ${emphasis ? COLORS.textMute : COLORS.border}`,
+        borderRadius: 999,
+        fontSize: 13, color: COLORS.text, fontWeight: 600,
       }}
     >
       {children}
@@ -3469,14 +3574,23 @@ function Pill({ children }) {
 }
 
 // === ProbabilityBar ===
-function ProbabilityBar({ probA, colorA, colorB }) {
+function ProbabilityBar({ probA, colorA, colorB, teamAName, teamBName }) {
   const a = clamp(probA, 0, 100);
+  // If the two team colors are too similar, render Team B with a diagonal stripe
+  // pattern so the split is always legible.
+  const colorsClash = contrastRatio(colorA, colorB) < 2.5;
+  const bFill = colorsClash
+    ? `repeating-linear-gradient(45deg, ${colorB} 0 10px, ${lighten(colorB, 0.18)} 10px 20px)`
+    : colorB;
   return (
     <div
+      role="img"
+      aria-label={`${teamAName || "Team A"} ${Math.round(a)}% versus ${teamBName || "Team B"} ${Math.round(100 - a)}%`}
       style={{
-        position: "relative", width: "100%", height: 12,
+        position: "relative", width: "100%", height: 18,
         background: COLORS.raised, borderRadius: 999, overflow: "hidden",
         border: `1px solid ${COLORS.border}`,
+        boxShadow: "inset 0 1px 2px rgba(0,0,0,0.5)",
       }}
     >
       <div
@@ -3489,14 +3603,18 @@ function ProbabilityBar({ probA, colorA, colorB }) {
       <div
         style={{
           position: "absolute", right: 0, top: 0, bottom: 0,
-          width: `${100 - a}%`, background: colorB,
+          width: `${100 - a}%`, background: bFill,
           transition: "width 350ms ease-out",
+          boxShadow: colorsClash ? "inset 0 0 0 2px rgba(255,255,255,0.3)" : "none",
         }}
       />
       <div
         style={{
-          position: "absolute", top: 0, bottom: 0, left: "50%",
-          width: 2, background: "rgba(255,255,255,0.18)",
+          position: "absolute", top: 0, bottom: 0, left: `${a}%`,
+          width: 3, background: "#ffffff",
+          transform: "translateX(-1.5px)",
+          transition: "left 350ms ease-out",
+          boxShadow: "0 0 0 1px rgba(0,0,0,0.5)",
         }}
       />
     </div>
@@ -3504,82 +3622,109 @@ function ProbabilityBar({ probA, colorA, colorB }) {
 }
 
 // === FactorCard ===
-function FactorCard({ factor, teamAName, teamBName, colorA, colorB, index }) {
+function FactorCard({ factor, teamAName, teamBName, colorA, colorB, teamA, teamB, index, isActive }) {
   const Icon = ICON_MAP[factor.icon] || Sparkles;
   const isA = factor.winner === "A";
   const isB = factor.winner === "B";
   const isTie = factor.winner === "tie";
-  const accent = isA ? COLORS.green : isB ? COLORS.red : COLORS.blue;
-  const opacity = factor.magnitude === "major" ? 1 : factor.magnitude === "moderate" ? 0.6 : 0.3;
+  // Use team-color (not generic green/red) for advantage so kids tie color → team
+  const accent = isA ? colorA : isB ? colorB : COLORS.blue;
+  const magOpacity = factor.magnitude === "major" ? 1 : factor.magnitude === "moderate" ? 0.85 : 0.65;
   const deltaText = isTie
     ? "±0%"
     : (factor.delta > 0 ? `+${factor.delta.toFixed(1)}%` : `${factor.delta.toFixed(1)}%`);
+  // Team abbreviation (more recognizable than full name in a small badge)
+  const winnerAbbr = isA ? (teamA && teamA.abbr) : isB ? (teamB && teamB.abbr) : null;
   const badgeText = isA
-    ? `▲ ${teamAName} advantage`
+    ? `▲ ${winnerAbbr || teamAName} advantage`
     : isB
-    ? `▼ ${teamBName} advantage`
-    : "Even matchup";
+    ? `▼ ${winnerAbbr || teamBName} advantage`
+    : "◆ Even matchup";
+  const badgeFg = (isA || isB) && contrastRatio("#ffffff", accent) >= 3.5 ? "#ffffff" : "#0d1117";
 
   return (
     <div
       style={{
         background: COLORS.surface,
-        border: `0.5px solid ${COLORS.border}`,
-        borderLeft: `4px solid ${accent}`,
-        borderLeftColor: accent,
-        opacity: 1,
-        borderRadius: 12, padding: 14,
+        border: `1px solid ${isActive ? accent : COLORS.border}`,
+        borderLeft: `${isActive ? 8 : 5}px solid ${accent}`,
+        borderRadius: 14,
+        padding: isActive ? 18 : 16,
+        boxShadow: isActive ? `0 8px 24px ${accent}33, 0 0 0 1px ${accent}55` : "none",
+        transform: isActive ? "scale(1.01)" : "none",
+        opacity: isActive ? 1 : 0.92,
         animation: "nflSlideUp 220ms ease-out both",
         animationDelay: `${Math.min(index * 30, 200)}ms`,
-        display: "flex", flexDirection: "column", gap: 10,
+        display: "flex", flexDirection: "column", gap: 12,
+        transition: "transform 200ms ease, opacity 200ms ease, box-shadow 200ms ease, padding 200ms ease",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
         <div
           style={{
-            width: 32, height: 32, flexShrink: 0,
-            background: COLORS.raised, borderRadius: 8,
+            width: 40, height: 40, flexShrink: 0,
+            background: `${accent}22`, borderRadius: 10,
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: accent, opacity,
+            color: accent, opacity: magOpacity,
+            border: `1.5px solid ${accent}55`,
           }}
         >
-          <Icon size={18} />
+          <Icon size={22} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
               display: "flex", justifyContent: "space-between",
-              alignItems: "center", gap: 8,
+              alignItems: "center", gap: 10,
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>
+            <div style={{ fontSize: TYPE.factorLabel, fontWeight: 700, color: COLORS.text }}>
               {factor.label}
             </div>
             <div
               style={{
-                fontSize: 13, fontWeight: 700, color: accent,
+                fontSize: 16, fontWeight: 800, color: accent,
                 fontVariantNumeric: "tabular-nums",
+                background: `${accent}1f`,
+                padding: "4px 10px", borderRadius: 8,
+                border: `1px solid ${accent}55`,
               }}
             >
               {deltaText}
             </div>
           </div>
-          <div style={{ fontSize: 13, color: COLORS.textSec, marginTop: 2, lineHeight: 1.35 }}>
+          <div
+            style={{
+              fontSize: TYPE.factorDesc, color: COLORS.textSec,
+              marginTop: 6, lineHeight: 1.5,
+            }}
+          >
             {factor.description || factor.desc}
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <StatPill color={colorA} label={teamAName} value={factor.teamAValue} />
-        <span style={{ color: COLORS.textMute, fontSize: 11, fontWeight: 600 }}>VS</span>
-        <StatPill color={colorB} label={teamBName} value={factor.teamBValue} />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
+        <StatPill color={colorA} label={teamA ? teamA.abbr : teamAName} value={factor.teamAValue} />
+        <span
+          style={{
+            color: COLORS.textSec, fontSize: 12, fontWeight: 700, letterSpacing: 1,
+            display: "flex", alignItems: "center",
+            background: COLORS.raised, padding: "0 10px",
+            borderRadius: 999, border: `1px solid ${COLORS.border}`,
+          }}
+        >
+          VS
+        </span>
+        <StatPill color={colorB} label={teamB ? teamB.abbr : teamBName} value={factor.teamBValue} />
       </div>
       <div
         style={{
           display: "inline-flex", alignSelf: isA ? "flex-start" : isB ? "flex-end" : "center",
-          padding: "4px 10px", borderRadius: 999,
-          background: `${accent}22`, color: accent,
-          fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+          padding: "8px 14px", borderRadius: 999,
+          background: accent, color: badgeFg,
+          fontSize: 13, fontWeight: 800, letterSpacing: 0.3,
+          border: `1px solid ${accent}`,
+          boxShadow: `0 2px 8px ${accent}44`,
         }}
       >
         {badgeText}
@@ -3593,23 +3738,25 @@ function StatPill({ color, label, value }) {
     <div
       style={{
         display: "flex", flexDirection: "column",
-        padding: "6px 12px", borderRadius: 8,
-        background: `${color}10`, border: `1px solid ${color}55`,
-        flex: "1 1 140px", minWidth: 0,
+        padding: "10px 14px", borderRadius: 10,
+        background: `${color}26`,
+        border: `2px solid ${color}`,
+        borderLeft: `8px solid ${color}`,
+        flex: "1 1 160px", minWidth: 0, minHeight: 56,
       }}
     >
       <div
         style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: 1,
-          color: COLORS.textMute, textTransform: "uppercase",
+          fontSize: TYPE.pillLabel, fontWeight: 700, letterSpacing: 0.5,
+          color: COLORS.textSec, textTransform: "uppercase",
         }}
       >
         {label}
       </div>
       <div
         style={{
-          fontSize: 13, fontWeight: 600, color: COLORS.text,
-          marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          fontSize: TYPE.pillValue, fontWeight: 700, color: COLORS.text,
+          marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}
         title={value}
       >
@@ -3622,23 +3769,28 @@ function StatPill({ color, label, value }) {
 // === MiniBarChart ===
 function MiniBarChart({ factors, colorA, colorB }) {
   const maxAbs = Math.max(...factors.map((f) => Math.abs(f.delta)), 1);
+  const colorsClash = contrastRatio(colorA, colorB) < 2.5;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {factors.map((f) => {
         const w = (Math.abs(f.delta) / maxAbs) * 50;
         const isA = f.delta > 0;
-        const color = isA ? colorA : f.delta < 0 ? colorB : COLORS.blue;
+        const isB = f.delta < 0;
+        let color = isA ? colorA : isB ? colorB : COLORS.blue;
+        const stripe = colorsClash && isB
+          ? `repeating-linear-gradient(45deg, ${colorB} 0 6px, ${lighten(colorB, 0.18)} 6px 12px)`
+          : color;
         return (
           <div
             key={f.id}
             style={{
-              display: "grid", gridTemplateColumns: "120px 1fr 56px",
-              alignItems: "center", gap: 8, fontSize: 11,
+              display: "grid", gridTemplateColumns: "150px 1fr 64px",
+              alignItems: "center", gap: 10, fontSize: TYPE.small,
             }}
           >
             <div
               style={{
-                color: COLORS.textSec, textAlign: "right",
+                color: COLORS.text, textAlign: "right", fontWeight: 500,
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               }}
               title={f.label}
@@ -3647,28 +3799,30 @@ function MiniBarChart({ factors, colorA, colorB }) {
             </div>
             <div
               style={{
-                position: "relative", height: 10,
+                position: "relative", height: 14,
                 background: COLORS.raised, borderRadius: 4, overflow: "hidden",
+                border: `1px solid ${COLORS.border}`,
               }}
             >
               <div
                 style={{
                   position: "absolute", top: 0, bottom: 0, left: "50%",
-                  width: 1, background: COLORS.border,
+                  width: 1, background: COLORS.textMute,
                 }}
               />
               <div
                 style={{
                   position: "absolute", top: 0, bottom: 0,
                   left: isA ? "50%" : `${50 - w}%`,
-                  width: `${w}%`, background: color,
+                  width: `${w}%`, background: stripe,
                   transition: "all 350ms ease-out",
                 }}
               />
             </div>
             <div
               style={{
-                color, fontWeight: 600,
+                color: isA ? colorA : isB ? lighten(colorB, 0.15) : COLORS.blue,
+                fontWeight: 700,
                 fontVariantNumeric: "tabular-nums", textAlign: "right",
               }}
             >
@@ -3684,15 +3838,15 @@ function MiniBarChart({ factors, colorA, colorB }) {
 // === Loading scanner ===
 function ScanningPanel({ teamA, teamB }) {
   const messages = [
-    "Loading roster data...",
-    "Analyzing quarterback stats...",
-    "Calculating home field...",
-    "Running matchup model...",
-    "Finalizing prediction...",
+    `Loading ${teamA.abbr} roster...`,
+    `Loading ${teamB.abbr} roster...`,
+    `Comparing quarterbacks...`,
+    `Calculating home field edge...`,
+    `Running matchup model...`,
   ];
   const [msgIdx, setMsgIdx] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setMsgIdx((i) => (i + 1) % messages.length), 200);
+    const id = setInterval(() => setMsgIdx((i) => (i + 1) % messages.length), 1100);
     return () => clearInterval(id);
   }, []);
   return (
@@ -3707,12 +3861,14 @@ function ScanningPanel({ teamA, teamB }) {
       <div
         style={{
           display: "flex", alignItems: "center", gap: 18,
-          fontSize: 22, fontWeight: 700,
+          fontSize: TYPE.teamNameLg, fontWeight: 800,
         }}
       >
-        <span style={{ color: teamA.primary }}>{teamA.name}</span>
-        <span style={{ color: COLORS.textMute, fontSize: 14, letterSpacing: 2 }}>VS</span>
-        <span style={{ color: teamB.primary }}>{teamB.name}</span>
+        <TeamTile team={teamA} size={48} />
+        <span style={{ color: fgColor(teamA) }}>{teamA.name}</span>
+        <span style={{ color: COLORS.textSec, fontSize: 16, letterSpacing: 2, fontWeight: 700 }}>VS</span>
+        <span style={{ color: fgColor(teamB) }}>{teamB.name}</span>
+        <TeamTile team={teamB} size={48} />
       </div>
       <div
         style={{
@@ -3729,9 +3885,10 @@ function ScanningPanel({ teamA, teamB }) {
         />
       </div>
       <div
+        aria-live="polite"
         style={{
-          fontSize: 13, color: COLORS.textSec,
-          fontFamily: "ui-monospace, monospace", minHeight: 18,
+          fontSize: 15, color: COLORS.text, fontWeight: 600,
+          fontFamily: "ui-monospace, monospace", minHeight: 22,
         }}
       >
         {messages[msgIdx]}
@@ -3801,6 +3958,13 @@ function NFLWinPredictor() {
     setCurrentProb(50);
   }, []);
 
+  const skipToResult = useCallback(() => {
+    if (!matchup) return;
+    setRevealedCount(matchup.factors.length);
+    setCurrentProb(matchup.finalProbability);
+    setPhase("result");
+  }, [matchup]);
+
   const explainPrediction = useCallback(() => {
     if (!matchup || !teamA || !teamB) return;
     const winner = matchup.finalProbability >= 50 ? teamA : teamB;
@@ -3853,7 +4017,7 @@ function NFLWinPredictor() {
           <RevealScreen
             teamA={teamA} teamB={teamB} matchup={matchup}
             revealedCount={revealedCount} animatedProb={animatedProb}
-            currentProb={currentProb}
+            onSkip={skipToResult}
           />
         )}
         {phase === "result" && matchup && teamA && teamB && (
@@ -3877,28 +4041,33 @@ function Header() {
       }}
     >
       <div style={{ maxWidth: 980, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div
             style={{
-              width: 36, height: 36, borderRadius: 10,
+              width: 44, height: 44, borderRadius: 12,
               background: `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`,
               display: "flex", alignItems: "center", justifyContent: "center",
               color: "#0d1117",
             }}
           >
-            <Sparkles size={20} />
+            <Sparkles size={24} />
           </div>
           <div>
             <div
               style={{
-                fontSize: 28, fontWeight: 700,
+                fontSize: TYPE.title, fontWeight: 800,
                 letterSpacing: -0.5, lineHeight: 1.05,
               }}
             >
               NFL Win Predictor
             </div>
-            <div style={{ fontSize: 13, color: COLORS.textSec, marginTop: 2 }}>
-              A STEM Fair Project — using real 2025 NFL data and math to predict football games
+            <div
+              style={{
+                fontSize: TYPE.body, color: COLORS.textSec,
+                marginTop: 4, fontWeight: 500,
+              }}
+            >
+              A STEM Fair Project — real 2025 NFL data + math = predictions
             </div>
           </div>
         </div>
@@ -3930,11 +4099,19 @@ function SelectScreen({
         <div
           style={{
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: COLORS.textMute, fontSize: 12, fontWeight: 700, letterSpacing: 2,
-            minWidth: 32,
+            minWidth: 44,
           }}
         >
-          VS
+          <span
+            style={{
+              width: 44, height: 44, borderRadius: 999,
+              background: COLORS.raised, border: `1.5px solid ${COLORS.border}`,
+              color: COLORS.textSec, fontSize: 14, fontWeight: 800, letterSpacing: 1,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            VS
+          </span>
         </div>
         <TeamPicker
           value={teamBId}
@@ -3948,24 +4125,24 @@ function SelectScreen({
       <div
         style={{
           background: COLORS.surface, border: `0.5px solid ${COLORS.border}`,
-          borderRadius: 12, padding: 16,
-          display: "flex", flexDirection: "column", gap: 10,
+          borderRadius: 14, padding: 18,
+          display: "flex", flexDirection: "column", gap: 12,
         }}
       >
         <div
           style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 1.5,
-            color: COLORS.textMute, textTransform: "uppercase",
+            fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1,
+            color: COLORS.textSec, textTransform: "uppercase",
           }}
         >
           Game location
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <LocChip
             active={homeTeam === "A"} onClick={() => setHomeTeam("A")}
             disabled={!teamA}
           >
-            {teamA ? `${teamA.name} home` : "Team A home"}
+            {teamA ? `${teamA.abbr} home` : "Team A home"}
           </LocChip>
           <LocChip
             active={homeTeam === "neutral"} onClick={() => setHomeTeam("neutral")}
@@ -3976,17 +4153,18 @@ function SelectScreen({
             active={homeTeam === "B"} onClick={() => setHomeTeam("B")}
             disabled={!teamB}
           >
-            {teamB ? `${teamB.name} home` : "Team B home"}
+            {teamB ? `${teamB.abbr} home` : "Team B home"}
           </LocChip>
         </div>
       </div>
 
       {sameTeam && (
         <div
+          role="alert"
           style={{
-            color: COLORS.red, fontSize: 13, fontWeight: 500,
-            background: `${COLORS.red}15`, padding: "10px 14px",
-            borderRadius: 8, border: `1px solid ${COLORS.red}55`,
+            color: COLORS.red, fontSize: 14, fontWeight: 600,
+            background: `${COLORS.red}1f`, padding: "12px 16px",
+            borderRadius: 10, border: `2px solid ${COLORS.red}`,
           }}
         >
           Pick two different teams!
@@ -3996,20 +4174,23 @@ function SelectScreen({
       <button
         onClick={startAnalysis}
         disabled={!canStart}
+        className="nfl-focusable"
         style={{
-          padding: "16px 24px",
-          fontSize: 16, fontWeight: 700, letterSpacing: 0.5,
+          padding: "22px 28px",
+          fontSize: 20, fontWeight: 800, letterSpacing: 0.3,
           background: canStart
             ? `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`
             : COLORS.raised,
           color: canStart ? "#0d1117" : COLORS.textMute,
-          border: "none", borderRadius: 12,
+          border: "none", borderRadius: 14,
           cursor: canStart ? "pointer" : "not-allowed",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-          transition: "transform 120ms ease",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+          minHeight: 64,
+          boxShadow: canStart ? `0 6px 20px ${COLORS.blue}33` : "none",
+          transition: "transform 120ms ease, box-shadow 200ms ease",
         }}
       >
-        <Play size={18} />
+        <Play size={22} />
         Analyze Matchup
       </button>
     </div>
@@ -4021,15 +4202,17 @@ function LocChip({ active, onClick, disabled, children }) {
     <button
       onClick={onClick}
       disabled={disabled}
+      className="nfl-focusable"
       style={{
-        padding: "8px 14px",
-        fontSize: 13, fontWeight: 600,
+        padding: "14px 22px",
+        fontSize: 16, fontWeight: 700,
         background: active ? COLORS.blue : COLORS.raised,
         color: active ? "#0d1117" : (disabled ? COLORS.textMute : COLORS.text),
-        border: `1px solid ${active ? COLORS.blue : COLORS.border}`,
+        border: `2px solid ${active ? COLORS.blue : COLORS.border}`,
         borderRadius: 999,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
+        minHeight: 48,
       }}
     >
       {children}
@@ -4037,20 +4220,32 @@ function LocChip({ active, onClick, disabled, children }) {
   );
 }
 
-function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, currentProb }) {
+function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSkip }) {
   const probA = animatedProb;
   const probB = 100 - animatedProb;
   const visibleFactors = matchup.factors.slice(0, revealedCount);
   const inProgress = revealedCount < matchup.factors.length;
+  const colorsClash = contrastRatio(teamA.primary, teamB.primary) < 2.5;
+  const teamAFg = fgColor(teamA);
+  const teamBFg = fgColor(teamB);
+  const activeRef = useRef(null);
+
+  useEffect(() => {
+    if (activeRef.current && typeof activeRef.current.scrollIntoView === "function") {
+      activeRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [revealedCount]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div
         style={{
           background: COLORS.surface, border: `0.5px solid ${COLORS.border}`,
-          borderRadius: 16, padding: 16,
+          borderRadius: 16, padding: 18,
           position: "sticky", top: 8, zIndex: 5,
-          display: "flex", flexDirection: "column", gap: 12,
+          display: "flex", flexDirection: "column", gap: 14,
+          backdropFilter: "blur(8px)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
         }}
       >
         <div
@@ -4059,100 +4254,153 @@ function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, curr
             alignItems: "center", gap: 16,
           }}
         >
-          <div style={{ textAlign: "left" }}>
-            <div
-              style={{
-                fontSize: 11, fontWeight: 600, letterSpacing: 1.5,
-                color: COLORS.textMute, textTransform: "uppercase",
-              }}
-            >
-              Team A
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: teamA.primary, lineHeight: 1.1 }}>
-              {teamA.name}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <TeamTile team={teamA} size={48} />
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1,
+                  color: COLORS.textSec, textTransform: "uppercase",
+                }}
+              >
+                Team A
+              </div>
+              <div
+                style={{
+                  fontSize: 20, fontWeight: 800, color: teamAFg,
+                  lineHeight: 1.1, overflow: "hidden",
+                  textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}
+              >
+                {teamA.name}
+              </div>
             </div>
           </div>
           <div
+            aria-live="polite"
+            aria-atomic="true"
             style={{
               display: "flex", alignItems: "baseline", gap: 8,
               fontFamily: "ui-monospace, monospace",
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            <span style={{ fontSize: 36, fontWeight: 800, color: teamA.primary }}>
+            <span style={{ fontSize: TYPE.probSticky, fontWeight: 900, color: teamAFg }}>
               {Math.round(probA)}%
             </span>
-            <span style={{ color: COLORS.textMute, fontWeight: 700 }}>:</span>
-            <span style={{ fontSize: 36, fontWeight: 800, color: teamB.primary }}>
+            <span style={{ color: COLORS.textMute, fontWeight: 700, fontSize: 28 }}>:</span>
+            <span style={{ fontSize: TYPE.probSticky, fontWeight: 900, color: teamBFg }}>
               {Math.round(probB)}%
             </span>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 11, fontWeight: 600, letterSpacing: 1.5,
-                color: COLORS.textMute, textTransform: "uppercase",
-              }}
-            >
-              Team B
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              minWidth: 0, justifyContent: "flex-end",
+            }}
+          >
+            <div style={{ minWidth: 0, textAlign: "right" }}>
+              <div
+                style={{
+                  fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1,
+                  color: COLORS.textSec, textTransform: "uppercase",
+                }}
+              >
+                Team B
+              </div>
+              <div
+                style={{
+                  fontSize: 20, fontWeight: 800, color: teamBFg,
+                  lineHeight: 1.1, overflow: "hidden",
+                  textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}
+              >
+                {teamB.name}
+              </div>
             </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: teamB.primary, lineHeight: 1.1 }}>
-              {teamB.name}
-            </div>
+            <TeamTile team={teamB} size={48} />
           </div>
         </div>
-        <ProbabilityBar probA={probA} colorA={teamA.primary} colorB={teamB.primary} />
+        <ProbabilityBar
+          probA={probA} colorA={teamA.primary} colorB={teamB.primary}
+          teamAName={teamA.name} teamBName={teamB.name}
+        />
+        {colorsClash && (
+          <div
+            style={{
+              fontSize: 12, color: COLORS.textSec,
+              display: "flex", alignItems: "center", gap: 6,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block", width: 16, height: 10, borderRadius: 2,
+                background: `repeating-linear-gradient(45deg, ${teamB.primary} 0 5px, ${lighten(teamB.primary, 0.18)} 5px 10px)`,
+              }}
+            />
+            Same team colors — {teamB.name} shown with stripes.
+          </div>
+        )}
         <div
           style={{
-            display: "flex", alignItems: "center", gap: 8,
-            fontSize: 11, fontWeight: 600, letterSpacing: 1.5,
-            color: inProgress ? COLORS.blue : COLORS.green,
+            display: "flex", alignItems: "center", gap: 10,
+            justifyContent: "space-between", flexWrap: "wrap",
           }}
         >
-          <span
+          <div
             style={{
-              display: "inline-block", width: 8, height: 8, borderRadius: 999,
-              background: "currentColor",
-              animation: inProgress ? "nflPulse 1s ease-in-out infinite" : "none",
+              display: "flex", alignItems: "center", gap: 8,
+              fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1,
+              color: inProgress ? COLORS.blue : COLORS.green,
             }}
-          />
-          {inProgress ? "ANALYZING" : "COMPLETE"}
-          <span style={{ color: COLORS.textMute, fontWeight: 500, letterSpacing: 0 }}>
-            · {revealedCount} / {matchup.factors.length} factors
-          </span>
+          >
+            <span
+              style={{
+                display: "inline-block", width: 10, height: 10, borderRadius: 999,
+                background: "currentColor",
+                animation: inProgress ? "nflPulse 1s ease-in-out infinite" : "none",
+              }}
+            />
+            {inProgress ? "ANALYZING" : "COMPLETE"}
+            <span style={{ color: COLORS.text, fontWeight: 600, letterSpacing: 0 }}>
+              · {revealedCount} of {matchup.factors.length}
+            </span>
+          </div>
+          {inProgress && (
+            <button
+              onClick={onSkip}
+              className="nfl-focusable"
+              style={{
+                background: "transparent", color: COLORS.textSec,
+                border: `1px solid ${COLORS.border}`, borderRadius: 999,
+                padding: "6px 14px", fontSize: 13, fontWeight: 600,
+                cursor: "pointer", minHeight: 36,
+              }}
+            >
+              Skip to result →
+            </button>
+          )}
         </div>
       </div>
 
-      <div
-        style={{
-          color: COLORS.textSec, fontSize: 13,
-          padding: "0 4px", minHeight: 18,
-        }}
-      >
-        {inProgress && visibleFactors.length > 0 && (
-          <span>
-            <BarChart3 size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
-            Analyzing factor {revealedCount} of {matchup.factors.length} —{" "}
-            <span style={{ color: COLORS.text, fontWeight: 600 }}>
-              {visibleFactors[visibleFactors.length - 1].label}
-            </span>
-            ...
-          </span>
-        )}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {[...visibleFactors].reverse().map((f, i) => (
-          <FactorCard
-            key={f.id}
-            factor={f}
-            teamAName={teamA.name}
-            teamBName={teamB.name}
-            colorA={teamA.primary}
-            colorB={teamB.primary}
-            index={i}
-          />
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {visibleFactors.map((f, i) => {
+          const isActive = i === visibleFactors.length - 1 && inProgress;
+          return (
+            <div ref={isActive ? activeRef : null} key={f.id}>
+              <FactorCard
+                factor={f}
+                teamA={teamA} teamB={teamB}
+                teamAName={teamA.name}
+                teamBName={teamB.name}
+                colorA={teamA.primary}
+                colorB={teamB.primary}
+                index={i}
+                isActive={isActive}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -4197,63 +4445,67 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
         style={{
           background: COLORS.surface,
           border: `0.5px solid ${COLORS.border}`,
-          borderTop: `4px solid ${winner.primary}`,
-          borderRadius: 16,
-          padding: 24,
+          borderTop: `5px solid ${winner.primary}`,
+          borderRadius: 18,
+          padding: "32px 24px",
           display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 12,
+          alignItems: "center", gap: 14,
+          backgroundImage: `radial-gradient(circle at 50% 0%, ${winner.primary}22 0%, transparent 60%)`,
         }}
       >
         <div
           style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 2,
-            color: COLORS.textMute, textTransform: "uppercase",
+            fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1.5,
+            color: COLORS.textSec, textTransform: "uppercase",
           }}
         >
-          Final prediction
+          Predicted winner
         </div>
+        <TeamTile team={winner} size={72} />
         <div
           style={{
-            fontSize: 26, fontWeight: 700, color: winner.primary,
-            textAlign: "center", lineHeight: 1.15,
-          }}
-        >
-          {winner.name} wins this matchup
-        </div>
-        <div
-          style={{
-            fontSize: 52, fontWeight: 800,
-            color: COLORS.text,
+            fontSize: TYPE.probHero, fontWeight: 900,
+            color: fgColor(winner),
             fontFamily: "ui-monospace, monospace",
             fontVariantNumeric: "tabular-nums", lineHeight: 1,
+            textShadow: `0 4px 24px ${winner.primary}55`,
           }}
         >
           {Math.round(winProb)}%
         </div>
         <div
           style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 1.5,
-            color: COLORS.textMute, textTransform: "uppercase",
+            fontSize: TYPE.resultName, fontWeight: 800,
+            color: COLORS.text, textAlign: "center", lineHeight: 1.1,
           }}
         >
-          predicted win probability
+          {winner.name}
         </div>
         <div
           style={{
-            background: `${COLORS.gold}22`, color: COLORS.gold,
-            padding: "6px 14px", borderRadius: 999,
-            fontSize: 12, fontWeight: 700, letterSpacing: 1,
+            fontSize: 14, color: COLORS.textSec, fontWeight: 500,
+          }}
+        >
+          wins this matchup
+        </div>
+        <div
+          style={{
+            background: COLORS.gold, color: "#0d1117",
+            padding: "8px 18px", borderRadius: 999,
+            fontSize: 14, fontWeight: 800, letterSpacing: 0.5,
+            border: `2px solid ${COLORS.gold}`,
+            boxShadow: `0 4px 12px ${COLORS.gold}55`,
           }}
         >
           {matchup.confidenceLabel}
         </div>
         <div
           style={{
-            color: COLORS.textSec, fontSize: 13,
-            textAlign: "center", maxWidth: 540, marginTop: 4, lineHeight: 1.45,
+            color: COLORS.textSec, fontSize: TYPE.body,
+            textAlign: "center", maxWidth: 580, marginTop: 6, lineHeight: 1.5,
           }}
         >
-          Based on 18 different factors from the 2025 NFL season, our model gives{" "}
+          Based on 18 factors from the 2025 NFL season, our model gives{" "}
           <strong style={{ color: COLORS.text }}>{winner.name}</strong>{" "}
           {matchup.confidenceLabel.toLowerCase()} status against{" "}
           <strong style={{ color: COLORS.text }}>{loser.name}</strong>.
@@ -4336,32 +4588,35 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <button
           onClick={reset}
+          className="nfl-focusable"
           style={{
-            flex: "1 1 200px",
-            padding: "14px 20px", fontSize: 14, fontWeight: 700,
+            flex: "1 1 220px",
+            padding: "18px 28px", fontSize: 17, fontWeight: 700,
             background: COLORS.raised, color: COLORS.text,
-            border: `1px solid ${COLORS.border}`, borderRadius: 12,
-            cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            border: `2px solid ${COLORS.border}`, borderRadius: 14,
+            cursor: "pointer", minHeight: 60,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
           }}
         >
-          <Repeat size={16} /> Analyze another matchup
+          <Repeat size={20} /> Analyze another matchup
         </button>
         <button
           onClick={explainPrediction}
+          className="nfl-focusable"
           style={{
-            flex: "1 1 200px",
-            padding: "14px 20px", fontSize: 14, fontWeight: 700,
+            flex: "1 1 220px",
+            padding: "18px 28px", fontSize: 17, fontWeight: 800,
             background: `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`,
             color: "#0d1117",
-            border: "none", borderRadius: 12, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            border: "none", borderRadius: 14, cursor: "pointer", minHeight: 60,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            boxShadow: `0 4px 16px ${COLORS.blue}33`,
           }}
         >
-          <MessageSquare size={16} /> Explain this prediction
+          <MessageSquare size={20} /> Explain this prediction
         </button>
       </div>
     </div>
@@ -4373,28 +4628,36 @@ function SummaryCard({ label, value, sub, color }) {
     <div
       style={{
         background: COLORS.surface, border: `0.5px solid ${COLORS.border}`,
-        borderRadius: 12, padding: 12,
-        display: "flex", flexDirection: "column", gap: 4,
+        borderTop: `3px solid ${color || COLORS.border}`,
+        borderRadius: 12, padding: 14,
+        display: "flex", flexDirection: "column", gap: 6,
       }}
     >
       <div
         style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: 1.2,
-          color: COLORS.textMute, textTransform: "uppercase",
+          fontSize: TYPE.pillLabel, fontWeight: 700, letterSpacing: 0.5,
+          color: COLORS.textSec, textTransform: "uppercase",
         }}
       >
         {label}
       </div>
       <div
         style={{
-          fontSize: 14, fontWeight: 700, color: color || COLORS.text,
+          fontSize: 16, fontWeight: 800, color: color || COLORS.text,
           lineHeight: 1.2,
         }}
       >
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: COLORS.textSec, fontWeight: 500 }}>{sub}</div>
+        <div
+          style={{
+            fontSize: 13, color: COLORS.textSec, fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {sub}
+        </div>
       )}
     </div>
   );
@@ -4404,24 +4667,26 @@ function HowItWorks() {
   return (
     <div
       style={{
-        marginTop: 24,
+        marginTop: 28,
         background: COLORS.surface, border: `0.5px solid ${COLORS.border}`,
-        borderRadius: 12, padding: 16,
-        color: COLORS.textSec, fontSize: 13, lineHeight: 1.5,
+        borderLeft: `4px solid ${COLORS.gold}`,
+        borderRadius: 12, padding: 18,
+        color: COLORS.text, fontSize: TYPE.body, lineHeight: 1.55,
       }}
     >
       <div
         style={{
-          fontSize: 11, fontWeight: 600, letterSpacing: 1.5,
-          color: COLORS.textMute, textTransform: "uppercase", marginBottom: 8,
+          fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1,
+          color: COLORS.gold, textTransform: "uppercase", marginBottom: 10,
+          display: "flex", alignItems: "center", gap: 8,
         }}
       >
-        How does this work?
+        <Sparkles size={16} /> How does this work?
       </div>
-      We start at <strong style={{ color: COLORS.text }}>50–50</strong> (like a coin flip)
-      and then look at <strong style={{ color: COLORS.text }}>18 different football facts</strong> —
-      from quarterback play to home field to recent form. Each fact moves the prediction up
-      or down a little. When we add them all up, we get our final prediction!
+      We start at <strong>50–50</strong> (like a coin flip) and then look at{" "}
+      <strong>18 different football facts</strong> — from quarterback play to home field
+      to recent form. Each fact moves the prediction up or down a little. When we add
+      them all up, we get our final prediction!
     </div>
   );
 }
