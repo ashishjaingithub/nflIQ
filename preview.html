@@ -96,23 +96,85 @@ function darken(hex, amount) {
   const [r, g, b] = _hexToRgb(hex);
   return _rgbToHex(r - amount * 255, g - amount * 255, b - amount * 255);
 }
-// Pick a foreground color for `team` against `bg` that meets WCAG AA (4.5:1).
-// Algorithm: primary → primary darkened/lightened until passable → secondary →
-// secondary adjusted → fallback text. Direction is chosen by bg luminance:
-// dark bg => lighten; light bg => darken. This way "Steelers gold" stays gold
-// (just deepened) instead of jumping to black on a white surface.
+// Pick a foreground color for an arbitrary hex against `bg` that meets WCAG AA.
+// Direction is chosen by bg luminance: dark bg => lighten; light bg => darken.
+function fgFromHex(hex, bg = COLORS.surface) {
+  if (!hex) return null;
+  if (contrastRatio(hex, bg) >= 4.5) return hex;
+  const adjust = relLum(bg) < 0.4 ? lighten : darken;
+  let v = hex;
+  for (let i = 0; i < 14 && contrastRatio(v, bg) < 4.5; i++) v = adjust(v, 0.07);
+  return contrastRatio(v, bg) >= 4.5 ? v : null;
+}
+// Pick a foreground for a team: try primary → secondary → fallback text.
+// "Steelers gold" stays gold (just deepened) instead of jumping to black.
 function fgColor(team, bg = COLORS.surface) {
   if (!team) return COLORS.text;
-  const bgIsDark = relLum(bg) < 0.4;
-  const adjust = bgIsDark ? lighten : darken;
-  const tryColor = (c) => {
-    if (!c) return null;
-    if (contrastRatio(c, bg) >= 4.5) return c;
-    let v = c;
-    for (let i = 0; i < 14 && contrastRatio(v, bg) < 4.5; i++) v = adjust(v, 0.07);
-    return contrastRatio(v, bg) >= 4.5 ? v : null;
+  return fgFromHex(team.primary, bg) || fgFromHex(team.secondary, bg) || COLORS.text;
+}
+
+// Resolve which colors to display for a head-to-head matchup. If the two
+// primaries are too similar (contrast < 2.5), swap one team to its secondary —
+// pick whichever swap yields better contrast. Returns the colors to use plus
+// the side that was swapped (so the UI can explain "shown in secondary").
+function resolveMatchupColors(teamA, teamB) {
+  if (!teamA || !teamB) {
+    return {
+      colorA: teamA ? teamA.primary : COLORS.blue,
+      colorB: teamB ? teamB.primary : COLORS.gold,
+      swappedSide: null, swappedTeam: null, swappedFromHex: null, swappedToHex: null,
+    };
+  }
+  const aP = teamA.primary, bP = teamB.primary;
+  if (contrastRatio(aP, bP) >= 2.5) {
+    return { colorA: aP, colorB: bP, swappedSide: null, swappedTeam: null, swappedFromHex: null, swappedToHex: null };
+  }
+  const optA = teamA.secondary
+    ? { colorA: teamA.secondary, colorB: bP, swappedSide: "A", swappedTeam: teamA, swappedFromHex: aP, swappedToHex: teamA.secondary, c: contrastRatio(teamA.secondary, bP) }
+    : null;
+  const optB = teamB.secondary
+    ? { colorA: aP, colorB: teamB.secondary, swappedSide: "B", swappedTeam: teamB, swappedFromHex: bP, swappedToHex: teamB.secondary, c: contrastRatio(aP, teamB.secondary) }
+    : null;
+  const candidates = [optA, optB].filter(Boolean);
+  if (candidates.length === 0) {
+    return { colorA: aP, colorB: bP, swappedSide: null, swappedTeam: null, swappedFromHex: null, swappedToHex: null };
+  }
+  candidates.sort((x, y) => y.c - x.c);
+  const best = candidates[0];
+  return {
+    colorA: best.colorA, colorB: best.colorB,
+    swappedSide: best.swappedSide, swappedTeam: best.swappedTeam,
+    swappedFromHex: best.swappedFromHex, swappedToHex: best.swappedToHex,
   };
-  return tryColor(team.primary) || tryColor(team.secondary) || COLORS.text;
+}
+
+// Friendly name for a hex (so we can say "shown in their gold" / "in orange").
+const COLOR_NAMES = [
+  ["red",     [255, 0, 0]],
+  ["orange",  [255, 140, 0]],
+  ["gold",    [212, 175, 55]],
+  ["yellow",  [255, 235, 80]],
+  ["green",   [40, 150, 60]],
+  ["teal",    [0, 130, 130]],
+  ["blue",    [40, 90, 200]],
+  ["navy",    [10, 30, 80]],
+  ["purple",  [85, 40, 130]],
+  ["pink",    [220, 110, 170]],
+  ["brown",   [110, 70, 30]],
+  ["tan",     [200, 180, 140]],
+  ["silver",  [180, 185, 190]],
+  ["black",   [20, 20, 20]],
+  ["white",   [240, 240, 240]],
+];
+function colorName(hex) {
+  if (!hex) return "color";
+  const [r, g, b] = _hexToRgb(hex);
+  let best = COLOR_NAMES[0], bestD = Infinity;
+  for (const [name, rgb] of COLOR_NAMES) {
+    const d = (rgb[0]-r)**2 + (rgb[1]-g)**2 + (rgb[2]-b)**2;
+    if (d < bestD) { bestD = d; best = [name, rgb]; }
+  }
+  return best[0];
 }
 
 const ICON_MAP = {
@@ -3422,21 +3484,24 @@ const DIVISIONS = [
 ];
 
 // === TeamTile (abbreviation chip — strong team mnemonic) ===
-function TeamTile({ team, size = 56 }) {
+function TeamTile({ team, size = 56, color }) {
   if (!team) return null;
-  // White abbr on solid primary by default; if primary is too light, fall back to dark text.
-  const onPrimary = contrastRatio("#ffffff", team.primary) >= 3.5 ? "#ffffff" : "#0d1117";
+  const fill = color || team.primary;
+  // White abbr on solid fill by default; if fill is too light, fall back to dark text.
+  const onFill = contrastRatio("#ffffff", fill) >= 3.5 ? "#ffffff" : "#1f2328";
+  // Trim border = the OTHER brand color (primary if we're displaying secondary, else secondary).
+  const trim = color && color === team.secondary ? team.primary : team.secondary;
   return (
     <div
       aria-hidden="true"
       style={{
         width: size, height: size, borderRadius: 12, flexShrink: 0,
-        background: team.primary,
-        color: onPrimary,
+        background: fill,
+        color: onFill,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontWeight: 900, fontSize: Math.round(size * 0.36),
         letterSpacing: -0.5, lineHeight: 1,
-        border: `2px solid ${team.secondary || COLORS.border}`,
+        border: `2px solid ${trim || COLORS.border}`,
         boxShadow: `inset 0 0 0 2px rgba(255,255,255,0.08)`,
         fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
       }}
@@ -3845,7 +3910,7 @@ function MiniBarChart({ factors, colorA, colorB }) {
 }
 
 // === Loading scanner ===
-function ScanningPanel({ teamA, teamB }) {
+function ScanningPanel({ teamA, teamB, colorA, colorB }) {
   const messages = [
     `Loading ${teamA.abbr} roster...`,
     `Loading ${teamB.abbr} roster...`,
@@ -3873,11 +3938,11 @@ function ScanningPanel({ teamA, teamB }) {
           fontSize: TYPE.teamNameLg, fontWeight: 800,
         }}
       >
-        <TeamTile team={teamA} size={48} />
-        <span style={{ color: fgColor(teamA) }}>{teamA.name}</span>
+        <TeamTile team={teamA} color={colorA} size={48} />
+        <span style={{ color: fgFromHex(colorA) || COLORS.text }}>{teamA.name}</span>
         <span style={{ color: COLORS.textSec, fontSize: 16, letterSpacing: 2, fontWeight: 700 }}>VS</span>
-        <span style={{ color: fgColor(teamB) }}>{teamB.name}</span>
-        <TeamTile team={teamB} size={48} />
+        <span style={{ color: fgFromHex(colorB) || COLORS.text }}>{teamB.name}</span>
+        <TeamTile team={teamB} color={colorB} size={48} />
       </div>
       <div
         style={{
@@ -3922,6 +3987,15 @@ function NFLWinPredictor() {
   const teamB = NFL_TEAMS.find((t) => t.id === teamBId) || null;
   const sameTeam = teamAId && teamBId && teamAId === teamBId;
   const canStart = teamA && teamB && !sameTeam;
+
+  // Resolve display colors for the matchup (auto-swap to a secondary if the
+  // two primaries are too similar). One source of truth used in every
+  // matchup-scoped view (scanning, reveal, result).
+  const matchupColors = (teamA && teamB)
+    ? resolveMatchupColors(teamA, teamB)
+    : { colorA: teamA ? teamA.primary : COLORS.blue,
+        colorB: teamB ? teamB.primary : COLORS.gold,
+        swappedSide: null, swappedTeam: null, swappedFromHex: null, swappedToHex: null };
 
   const animatedProb = useAnimatedNumber(currentProb, 350);
 
@@ -4020,19 +4094,26 @@ function NFLWinPredictor() {
           />
         )}
         {phase === "scanning" && teamA && teamB && (
-          <ScanningPanel teamA={teamA} teamB={teamB} />
+          <ScanningPanel
+            teamA={teamA} teamB={teamB}
+            colorA={matchupColors.colorA} colorB={matchupColors.colorB}
+          />
         )}
         {phase === "reveal" && matchup && teamA && teamB && (
           <RevealScreen
             teamA={teamA} teamB={teamB} matchup={matchup}
             revealedCount={revealedCount} animatedProb={animatedProb}
             onSkip={skipToResult}
+            colorA={matchupColors.colorA} colorB={matchupColors.colorB}
+            swap={matchupColors}
           />
         )}
         {phase === "result" && matchup && teamA && teamB && (
           <ResultScreen
             teamA={teamA} teamB={teamB} matchup={matchup}
             reset={reset} explainPrediction={explainPrediction}
+            colorA={matchupColors.colorA} colorB={matchupColors.colorB}
+            swap={matchupColors}
           />
         )}
         <HowItWorks />
@@ -4229,14 +4310,13 @@ function LocChip({ active, onClick, disabled, children }) {
   );
 }
 
-function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSkip }) {
+function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSkip, colorA, colorB, swap }) {
   const probA = animatedProb;
   const probB = 100 - animatedProb;
   const visibleFactors = matchup.factors.slice(0, revealedCount);
   const inProgress = revealedCount < matchup.factors.length;
-  const colorsClash = contrastRatio(teamA.primary, teamB.primary) < 2.5;
-  const teamAFg = fgColor(teamA);
-  const teamBFg = fgColor(teamB);
+  const teamAFg = fgFromHex(colorA) || COLORS.text;
+  const teamBFg = fgFromHex(colorB) || COLORS.text;
   const activeRef = useRef(null);
 
   useEffect(() => {
@@ -4264,7 +4344,7 @@ function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSk
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-            <TeamTile team={teamA} size={48} />
+            <TeamTile team={teamA} color={colorA} size={48} />
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
@@ -4327,27 +4407,37 @@ function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSk
                 {teamB.name}
               </div>
             </div>
-            <TeamTile team={teamB} size={48} />
+            <TeamTile team={teamB} color={colorB} size={48} />
           </div>
         </div>
         <ProbabilityBar
-          probA={probA} colorA={teamA.primary} colorB={teamB.primary}
+          probA={probA} colorA={colorA} colorB={colorB}
           teamAName={teamA.name} teamBName={teamB.name}
         />
-        {colorsClash && (
+        {swap && swap.swappedSide && swap.swappedTeam && (
           <div
+            role="note"
             style={{
-              fontSize: 12, color: COLORS.textSec,
-              display: "flex", alignItems: "center", gap: 6,
+              fontSize: 13, color: COLORS.textSec, fontWeight: 500,
+              display: "flex", alignItems: "center", gap: 8,
+              background: COLORS.raised,
+              padding: "8px 12px", borderRadius: 8,
+              border: `1px solid ${COLORS.border}`,
             }}
           >
             <span
               style={{
-                display: "inline-block", width: 16, height: 10, borderRadius: 2,
-                background: `repeating-linear-gradient(45deg, ${teamB.primary} 0 5px, ${lighten(teamB.primary, 0.18)} 5px 10px)`,
+                display: "inline-flex", flexShrink: 0, gap: 3,
               }}
-            />
-            Same team colors — {teamB.name} shown with stripes.
+            >
+              <span style={{ width: 12, height: 12, borderRadius: 2, background: swap.swappedFromHex, border: `1px solid ${COLORS.border}` }} />
+              <ArrowRight size={12} style={{ color: COLORS.textMute }} />
+              <span style={{ width: 12, height: 12, borderRadius: 2, background: swap.swappedToHex, border: `1px solid ${COLORS.border}` }} />
+            </span>
+            <span>
+              <strong style={{ color: COLORS.text }}>{swap.swappedTeam.name}</strong>{" "}
+              shown in their secondary {colorName(swap.swappedToHex)} because both teams play in {colorName(swap.swappedFromHex)}.
+            </span>
           </div>
         )}
         <div
@@ -4402,8 +4492,8 @@ function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSk
                 teamA={teamA} teamB={teamB}
                 teamAName={teamA.name}
                 teamBName={teamB.name}
-                colorA={teamA.primary}
-                colorB={teamB.primary}
+                colorA={colorA}
+                colorB={colorB}
                 index={i}
                 isActive={isActive}
               />
@@ -4415,10 +4505,12 @@ function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSk
   );
 }
 
-function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
+function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction, colorA, colorB, swap }) {
   const aWins = matchup.finalProbability >= 50;
   const winner = aWins ? teamA : teamB;
   const loser = aWins ? teamB : teamA;
+  const winnerColor = aWins ? colorA : colorB;
+  const loserColor = aWins ? colorB : colorA;
   const winProb = aWins ? matchup.finalProbability : matchup.teamBProbability;
 
   const sorted = [...matchup.factors].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
@@ -4454,12 +4546,12 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
         style={{
           background: COLORS.surface,
           border: `0.5px solid ${COLORS.border}`,
-          borderTop: `5px solid ${winner.primary}`,
+          borderTop: `5px solid ${winnerColor}`,
           borderRadius: 18,
           padding: "32px 24px",
           display: "flex", flexDirection: "column",
           alignItems: "center", gap: 14,
-          backgroundImage: `radial-gradient(circle at 50% 0%, ${winner.primary}22 0%, transparent 60%)`,
+          backgroundImage: `radial-gradient(circle at 50% 0%, ${winnerColor}22 0%, transparent 60%)`,
         }}
       >
         <div
@@ -4470,14 +4562,14 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
         >
           Predicted winner
         </div>
-        <TeamTile team={winner} size={72} />
+        <TeamTile team={winner} color={winnerColor} size={72} />
         <div
           style={{
             fontSize: TYPE.probHero, fontWeight: 900,
-            color: fgColor(winner),
+            color: fgFromHex(winnerColor) || COLORS.text,
             fontFamily: "ui-monospace, monospace",
             fontVariantNumeric: "tabular-nums", lineHeight: 1,
-            textShadow: `0 4px 24px ${winner.primary}55`,
+            textShadow: `0 4px 24px ${winnerColor}55`,
           }}
         >
           {Math.round(winProb)}%
@@ -4532,7 +4624,7 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
           label="Biggest factor"
           value={biggestEdge ? biggestEdge.label : "—"}
           sub={biggestEdge ? `${biggestEdge.delta > 0 ? "+" : ""}${biggestEdge.delta.toFixed(1)}%` : ""}
-          color={biggestEdge ? (biggestEdge.delta > 0 ? teamA.primary : teamB.primary) : COLORS.textMute}
+          color={biggestEdge ? (biggestEdge.delta > 0 ? colorA : colorB) : COLORS.textMute}
         />
         <SummaryCard
           label="Toughest spot for winner"
@@ -4562,7 +4654,7 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
           label="Factors won by winner"
           value={`${winnerFactors.length} of ${matchup.factors.length}`}
           sub=""
-          color={winner.primary}
+          color={winnerColor}
         />
       </div>
 
@@ -4583,8 +4675,8 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
         </div>
         <MiniBarChart
           factors={matchup.factors}
-          colorA={teamA.primary}
-          colorB={teamB.primary}
+          colorA={colorA}
+          colorB={colorB}
         />
         <div
           style={{
