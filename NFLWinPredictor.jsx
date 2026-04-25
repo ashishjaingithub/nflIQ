@@ -7,17 +7,17 @@ import {
 } from "lucide-react";
 
 const COLORS = {
-  bg:        "#0d1117",
-  surface:   "#161b22",
-  raised:    "#21262d",
-  border:    "#30363d",
-  text:      "#e6edf3",
-  textSec:   "#9ba6b1",
-  textMute:  "#6b7280",
-  green:     "#3fb950",
-  red:       "#f85149",
-  blue:      "#58a6ff",
-  gold:      "#f0b429",
+  bg:        "#f6f8fa",   // canvas.subtle (page background)
+  surface:   "#ffffff",   // canvas.default (card background)
+  raised:    "#eef1f5",   // canvas.inset (dropdowns, raised chips)
+  border:    "#d0d7de",   // border.default
+  text:      "#1f2328",   // fg.default (near-black, never pure)
+  textSec:   "#59636e",   // fg.muted (secondary text)
+  textMute:  "#818b98",   // fg.subtle (least-important labels)
+  green:     "#1a7f37",   // success.fg (4.5:1 on white)
+  red:       "#cf222e",   // danger.fg
+  blue:      "#0969da",   // accent.fg
+  gold:      "#bf8700",   // attention.fg (warmer than fg.muted-yellow)
 };
 
 // Type scale (px). Tuned for arm's-length tablet viewing at a STEM fair.
@@ -60,17 +60,27 @@ function lighten(hex, amount) {
   const [r, g, b] = _hexToRgb(hex);
   return _rgbToHex(r + amount * 255, g + amount * 255, b + amount * 255);
 }
+function darken(hex, amount) {
+  const [r, g, b] = _hexToRgb(hex);
+  return _rgbToHex(r - amount * 255, g - amount * 255, b - amount * 255);
+}
 // Pick a foreground color for `team` against `bg` that meets WCAG AA (4.5:1).
-// Try primary → secondary → progressively lightened primary.
+// Algorithm: primary → primary darkened/lightened until passable → secondary →
+// secondary adjusted → fallback text. Direction is chosen by bg luminance:
+// dark bg => lighten; light bg => darken. This way "Steelers gold" stays gold
+// (just deepened) instead of jumping to black on a white surface.
 function fgColor(team, bg = COLORS.surface) {
   if (!team) return COLORS.text;
-  const p = team.primary;
-  if (contrastRatio(p, bg) >= 4.5) return p;
-  const s = team.secondary;
-  if (s && contrastRatio(s, bg) >= 4.5) return s;
-  let c = p;
-  for (let i = 0; i < 14 && contrastRatio(c, bg) < 4.5; i++) c = lighten(c, 0.07);
-  return c;
+  const bgIsDark = relLum(bg) < 0.4;
+  const adjust = bgIsDark ? lighten : darken;
+  const tryColor = (c) => {
+    if (!c) return null;
+    if (contrastRatio(c, bg) >= 4.5) return c;
+    let v = c;
+    for (let i = 0; i < 14 && contrastRatio(v, bg) < 4.5; i++) v = adjust(v, 0.07);
+    return contrastRatio(v, bg) >= 4.5 ? v : null;
+  };
+  return tryColor(team.primary) || tryColor(team.secondary) || COLORS.text;
 }
 
 const ICON_MAP = {
@@ -3493,7 +3503,6 @@ function TeamPicker({ value, onChange, excludeId, side, allTeams }) {
                 style={{
                   fontSize: TYPE.teamNameLg, fontWeight: 800,
                   color: teamFg, lineHeight: 1.05,
-                  textShadow: `0 1px 0 rgba(0,0,0,0.4)`,
                 }}
               >
                 {team.name}
@@ -3558,7 +3567,7 @@ function ProbabilityBar({ probA, colorA, colorB, teamAName, teamBName }) {
         position: "relative", width: "100%", height: 18,
         background: COLORS.raised, borderRadius: 999, overflow: "hidden",
         border: `1px solid ${COLORS.border}`,
-        boxShadow: "inset 0 1px 2px rgba(0,0,0,0.5)",
+        boxShadow: "inset 0 1px 2px rgba(0,0,0,0.08)",
       }}
     >
       <div
@@ -3582,7 +3591,7 @@ function ProbabilityBar({ probA, colorA, colorB, teamAName, teamBName }) {
           width: 3, background: "#ffffff",
           transform: "translateX(-1.5px)",
           transition: "left 350ms ease-out",
-          boxShadow: "0 0 0 1px rgba(0,0,0,0.5)",
+          boxShadow: "0 0 0 1px rgba(0,0,0,0.18)",
         }}
       />
     </div>
@@ -4015,7 +4024,7 @@ function Header() {
               width: 44, height: 44, borderRadius: 12,
               background: `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#0d1117",
+              color: "#ffffff",
             }}
           >
             <Sparkles size={24} />
@@ -4149,7 +4158,7 @@ function SelectScreen({
           background: canStart
             ? `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`
             : COLORS.raised,
-          color: canStart ? "#0d1117" : COLORS.textMute,
+          color: canStart ? "#ffffff" : COLORS.textMute,
           border: "none", borderRadius: 14,
           cursor: canStart ? "pointer" : "not-allowed",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
@@ -4175,7 +4184,7 @@ function LocChip({ active, onClick, disabled, children }) {
         padding: "14px 22px",
         fontSize: 16, fontWeight: 700,
         background: active ? COLORS.blue : COLORS.raised,
-        color: active ? "#0d1117" : (disabled ? COLORS.textMute : COLORS.text),
+        color: active ? "#ffffff" : (disabled ? COLORS.textMute : COLORS.text),
         border: `2px solid ${active ? COLORS.blue : COLORS.border}`,
         borderRadius: 999,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -4213,7 +4222,7 @@ function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSk
           position: "sticky", top: 8, zIndex: 5,
           display: "flex", flexDirection: "column", gap: 14,
           backdropFilter: "blur(8px)",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          boxShadow: "0 4px 16px rgba(15,23,42,0.08)",
         }}
       >
         <div
@@ -4458,7 +4467,7 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
         </div>
         <div
           style={{
-            background: COLORS.gold, color: "#0d1117",
+            background: COLORS.gold, color: "#ffffff",
             padding: "8px 18px", borderRadius: 999,
             fontSize: 14, fontWeight: 800, letterSpacing: 0.5,
             border: `2px solid ${COLORS.gold}`,
@@ -4578,7 +4587,7 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction }) {
             flex: "1 1 220px",
             padding: "18px 28px", fontSize: 17, fontWeight: 800,
             background: `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`,
-            color: "#0d1117",
+            color: "#ffffff",
             border: "none", borderRadius: 14, cursor: "pointer", minHeight: 60,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
             boxShadow: `0 4px 16px ${COLORS.blue}33`,
