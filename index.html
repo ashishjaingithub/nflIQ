@@ -35,7 +35,7 @@ import {
   Home, Trophy, TrendingUp, Star, Shield, Zap, Target, Lock,
   RefreshCw, ArrowRight, MapPin, Activity, Send, Users,
   Crosshair, Briefcase, Award, AlertTriangle, ChevronDown,
-  Play, Sparkles, BarChart3, Repeat, MessageSquare,
+  Play, Sparkles, BarChart3, Repeat,
 } from "lucide-react";
 
 const COLORS = {
@@ -4048,30 +4048,6 @@ function NFLWinPredictor() {
     setPhase("result");
   }, [matchup]);
 
-  const explainPrediction = useCallback(() => {
-    if (!matchup || !teamA || !teamB) return;
-    const winner = matchup.finalProbability >= 50 ? teamA : teamB;
-    const winProb = Math.round(
-      matchup.finalProbability >= 50 ? matchup.finalProbability : matchup.teamBProbability
-    );
-    const top3 = [...matchup.factors]
-      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-      .slice(0, 3)
-      .map((f) => f.label)
-      .join(", ");
-    const prompt =
-      `Explain the NFL win probability prediction for ${teamA.name} vs ${teamB.name}. ` +
-      `The model predicted ${winner.name} with ${winProb}% probability. ` +
-      `The biggest factors were: ${top3}. Use simple language for 5th graders.`;
-    if (typeof window !== "undefined" && typeof window.sendPrompt === "function") {
-      window.sendPrompt(prompt);
-    } else if (typeof window !== "undefined" && typeof window.claude !== "undefined" && typeof window.claude.sendPrompt === "function") {
-      window.claude.sendPrompt(prompt);
-    } else if (typeof window !== "undefined") {
-      console.log("[sendPrompt unavailable] →", prompt);
-      alert("This button asks Claude to explain the prediction in 5th-grade language. (sendPrompt not available in this environment.)");
-    }
-  }, [matchup, teamA, teamB]);
 
   return (
     <div
@@ -4111,7 +4087,7 @@ function NFLWinPredictor() {
         {phase === "result" && matchup && teamA && teamB && (
           <ResultScreen
             teamA={teamA} teamB={teamB} matchup={matchup}
-            reset={reset} explainPrediction={explainPrediction}
+            reset={reset}
             colorA={matchupColors.colorA} colorB={matchupColors.colorB}
             swap={matchupColors}
           />
@@ -4505,13 +4481,21 @@ function RevealScreen({ teamA, teamB, matchup, revealedCount, animatedProb, onSk
   );
 }
 
-function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction, colorA, colorB, swap }) {
+function ResultScreen({ teamA, teamB, matchup, reset, colorA, colorB, swap }) {
   const aWins = matchup.finalProbability >= 50;
   const winner = aWins ? teamA : teamB;
   const loser = aWins ? teamB : teamA;
   const winnerColor = aWins ? colorA : colorB;
   const loserColor = aWins ? colorB : colorA;
   const winProb = aWins ? matchup.finalProbability : matchup.teamBProbability;
+
+  const [showAllFactors, setShowAllFactors] = useState(false);
+  const allFactorsRef = useRef(null);
+  useEffect(() => {
+    if (showAllFactors && allFactorsRef.current && typeof allFactorsRef.current.scrollIntoView === "function") {
+      allFactorsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showAllFactors]);
 
   const sorted = [...matchup.factors].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
   const winnerSign = aWins ? 1 : -1;
@@ -4705,21 +4689,74 @@ function ResultScreen({ teamA, teamB, matchup, reset, explainPrediction, colorA,
           <Repeat size={20} /> Analyze another matchup
         </button>
         <button
-          onClick={explainPrediction}
+          onClick={() => setShowAllFactors((v) => !v)}
           className="nfl-focusable"
+          aria-expanded={showAllFactors}
+          aria-controls="nfl-all-factors-panel"
           style={{
             flex: "1 1 220px",
             padding: "18px 28px", fontSize: 17, fontWeight: 800,
-            background: `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`,
-            color: "#ffffff",
-            border: "none", borderRadius: 14, cursor: "pointer", minHeight: 60,
+            background: showAllFactors
+              ? COLORS.surface
+              : `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.gold})`,
+            color: showAllFactors ? COLORS.text : "#ffffff",
+            border: showAllFactors ? `2px solid ${COLORS.border}` : "none",
+            borderRadius: 14, cursor: "pointer", minHeight: 60,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-            boxShadow: `0 4px 16px ${COLORS.blue}33`,
+            boxShadow: showAllFactors ? "none" : `0 4px 16px ${COLORS.blue}33`,
           }}
         >
-          <MessageSquare size={20} /> Explain this prediction
+          {showAllFactors ? <ChevronDown size={20} style={{ transform: "rotate(180deg)" }} /> : <BarChart3 size={20} />}
+          {showAllFactors ? "Hide factor details" : "Show all 18 factors"}
         </button>
       </div>
+
+      {showAllFactors && (
+        <div
+          ref={allFactorsRef}
+          id="nfl-all-factors-panel"
+          style={{
+            display: "flex", flexDirection: "column", gap: 14,
+            scrollMarginTop: 16,
+          }}
+        >
+          <div
+            style={{
+              background: COLORS.surface, border: `0.5px solid ${COLORS.border}`,
+              borderLeft: `4px solid ${COLORS.blue}`,
+              borderRadius: 12, padding: 16,
+            }}
+          >
+            <div
+              style={{
+                fontSize: TYPE.caps, fontWeight: 700, letterSpacing: 1,
+                color: COLORS.blue, textTransform: "uppercase", marginBottom: 6,
+                display: "flex", alignItems: "center", gap: 8,
+              }}
+            >
+              <BarChart3 size={16} /> All 18 factors, in order
+            </div>
+            <div style={{ fontSize: TYPE.body, color: COLORS.textSec, lineHeight: 1.5 }}>
+              Each factor moves the prediction up or down a little.
+              Add them all up to see how the model got to{" "}
+              <strong style={{ color: COLORS.text }}>{Math.round(winProb)}%</strong>.
+            </div>
+          </div>
+          {matchup.factors.map((f, i) => (
+            <FactorCard
+              key={f.id}
+              factor={f}
+              teamA={teamA} teamB={teamB}
+              teamAName={teamA.name}
+              teamBName={teamB.name}
+              colorA={colorA}
+              colorB={colorB}
+              index={i}
+              isActive={false}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
