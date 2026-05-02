@@ -3183,12 +3183,15 @@ function calculateMatchup(teamA, teamB, opts = {}) {
   }
 
   // 4. Quarterback
+  // Driven by passer rating so the displayed stat matches the decision.
+  // 2025 ratings range ~68-113 → coefficient 0.25 keeps deltas reasonable
+  // (1-pt diff = 0.25%, 10-pt = 2.5%, 30-pt = 7.5%); cap at ±10.
   {
-    const delta = clamp((teamA.qb.grade - teamB.qb.grade) * 2.2, -10, 10);
+    const delta = clamp((teamA.qb.passerRating - teamB.qb.passerRating) * 0.25, -10, 10);
     factors.push({
       ...FACTOR_DEFS[3],
-      teamAValue: `${teamA.qb.name} (${teamA.qb.passerRating.toFixed(1)} rtg)`,
-      teamBValue: `${teamB.qb.name} (${teamB.qb.passerRating.toFixed(1)} rtg)`,
+      teamAValue: `${teamA.qb.name} · ${teamA.qb.passerRating.toFixed(1)} rtg`,
+      teamBValue: `${teamB.qb.name} · ${teamB.qb.passerRating.toFixed(1)} rtg`,
       winner: winnerOf(delta), delta, magnitude: magnitudeOf(delta),
     });
   }
