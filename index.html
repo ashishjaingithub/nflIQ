@@ -3306,28 +3306,30 @@ function calculateMatchup(teamA, teamB, opts = {}) {
     });
   }
 
-  // 12. Rushing attack
+  // 12. Rushing attack — matchup of each team's rush yards/g vs the other
+  // team's rush yards allowed. Driver matches the displayed numbers so
+  // the comparison is transparent.
   {
-    const aAdv = teamA.rushOffense.grade - teamB.rushDefense.grade;
-    const bAdv = teamB.rushOffense.grade - teamA.rushDefense.grade;
-    const delta = clamp((aAdv - bAdv) * 0.7, -3, 3);
+    const aEdge = teamA.rushOffense.yardsPerGame - teamB.rushDefense.yardsAllowed;
+    const bEdge = teamB.rushOffense.yardsPerGame - teamA.rushDefense.yardsAllowed;
+    const delta = clamp((aEdge - bEdge) * 0.05, -3, 3);
     factors.push({
       ...FACTOR_DEFS[11],
-      teamAValue: `${Math.round(teamA.rushOffense.yardsPerGame)} rush yds/g`,
-      teamBValue: `${Math.round(teamB.rushOffense.yardsPerGame)} rush yds/g`,
+      teamAValue: `${Math.round(teamA.rushOffense.yardsPerGame)} rush yd/g vs ${Math.round(teamB.rushDefense.yardsAllowed)} def`,
+      teamBValue: `${Math.round(teamB.rushOffense.yardsPerGame)} rush yd/g vs ${Math.round(teamA.rushDefense.yardsAllowed)} def`,
       winner: winnerOf(delta), delta, magnitude: magnitudeOf(delta),
     });
   }
 
-  // 13. Passing game
+  // 13. Passing game — same matchup pattern with pass yards.
   {
-    const aAdv = teamA.passOffense.grade - teamB.passDefense.grade;
-    const bAdv = teamB.passOffense.grade - teamA.passDefense.grade;
-    const delta = clamp((aAdv - bAdv) * 0.8, -4, 4);
+    const aEdge = teamA.passOffense.yardsPerGame - teamB.passDefense.yardsAllowed;
+    const bEdge = teamB.passOffense.yardsPerGame - teamA.passDefense.yardsAllowed;
+    const delta = clamp((aEdge - bEdge) * 0.04, -4, 4);
     factors.push({
       ...FACTOR_DEFS[12],
-      teamAValue: `${Math.round(teamA.passOffense.yardsPerGame)} pass yds/g`,
-      teamBValue: `${Math.round(teamB.passOffense.yardsPerGame)} pass yds/g`,
+      teamAValue: `${Math.round(teamA.passOffense.yardsPerGame)} pass yd/g vs ${Math.round(teamB.passDefense.yardsAllowed)} def`,
+      teamBValue: `${Math.round(teamB.passOffense.yardsPerGame)} pass yd/g vs ${Math.round(teamA.passDefense.yardsAllowed)} def`,
       winner: winnerOf(delta), delta, magnitude: magnitudeOf(delta),
     });
   }
