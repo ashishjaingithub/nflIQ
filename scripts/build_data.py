@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Process nflverse 2025 regular-season CSVs into an embeddable JS NFL_TEAMS constant."""
+"""Build NFL_TEAMS for the app:
+- Player identity from the 2026 post-draft / post-free-agency roster
+- Veteran performance from real 2025 stats (carried to the new team by player id)
+- Rookie QBs (no NFL stats) get a projection scaled by 2026 draft slot
+- Team records & team-level grades stay 2025 (no 2026 games exist yet)
+"""
 import csv, json, math, sys
 from collections import defaultdict
 
@@ -38,43 +43,47 @@ TEAM_META = {
   "WAS": {"id":"commanders","name":"Washington Commanders","city":"Washington","conference":"NFC","division":"East","primary":"#5A1414","secondary":"#FFB612","coach":{"name":"Dan Quinn","grade":7.8},"stadium":"Northwest Stadium","isOutdoor":True,"playoffExperience":5.5},
 }
 
-# nflverse uses "LA" for the Rams; our metadata uses the NFL-standard "LAR".
+# nflverse stats/roster use "LA" for the Rams; metadata uses "LAR".
 ABBR_ALIAS = {"LAR": "LA"}
 def src_abbr(meta_abbr): return ABBR_ALIAS.get(meta_abbr, meta_abbr)
 
+# draft_picks.csv uses some 3-letter codes; normalize to roster/stats codes.
+DRAFT_CODE = {
+  "GNB":"GB","KAN":"KC","LVR":"LV","NOR":"NO","NWE":"NE","SFO":"SF",
+  "TAM":"TB","LAR":"LA",
+}
+def norm_draft_team(c): return DRAFT_CODE.get(c, c)
+
 def f(x, d=0.0):
     try:
-        if x == "" or x is None: return d
+        if x in ("", None): return d
         return float(x)
     except: return d
-
 def i(x, d=0):
     try:
-        if x == "" or x is None: return d
+        if x in ("", None): return d
         return int(float(x))
     except: return d
+def norm_name(s):
+    return " ".join((s or "").lower().replace(".", "").replace("'", "").split())
 
-# ── Load team stats ──────────────────────────────────────────────────────
+# ── 2025 team stats / games (records, team-level grades) ────────────────────
 team_raw = {}
 with open("stats_team.csv") as fh:
     for r in csv.DictReader(fh):
         if r["season"] == "2025" and r["season_type"] == "REG":
             team_raw[r["team"]] = r
 
-# ── Load games (filter 2025 REG completed) ───────────────────────────────
 games = []
 with open("games.csv") as fh:
     for r in csv.DictReader(fh):
         if r["season"] == "2025" and r["game_type"] == "REG" and r["home_score"] and r["away_score"]:
             games.append(r)
-# Sort chronologically
 games.sort(key=lambda g: (i(g.get("week")), g.get("gameday","")))
 
-# ── Compute W/L, PF, PA, home wins, last 5 ────────────────────────────────
 record = defaultdict(lambda: {"w":0,"l":0,"t":0,"pf":0,"pa":0,"g":0})
 home_rec = defaultdict(lambda: {"w":0,"g":0})
-results_by_team = defaultdict(list)  # chronological
-
+results_by_team = defaultdict(list)
 for g in games:
     h, a = g["home_team"], g["away_team"]
     hs, as_ = i(g["home_score"]), i(g["away_score"])
@@ -92,14 +101,35 @@ for g in games:
         record[h]["t"] += 1; record[a]["t"] += 1
         results_by_team[h].append("T"); results_by_team[a].append("T")
 
-# ── Load player stats ────────────────────────────────────────────────────
-players = []
+# ── 2025 player stats indexed by player id (carry to 2026 team) ─────────────
+players_2025 = {}   # player_id -> row
+players_2025_byname = {}
 with open("stats_player.csv") as fh:
     for r in csv.DictReader(fh):
         if r["season"] == "2025" and r["season_type"] == "REG":
-            players.append(r)
+            pid = r.get("player_id")
+            if pid: players_2025[pid] = r
+            players_2025_byname[norm_name(r.get("player_display_name"))] = r
 
-# NFL passer rating formula
+# ── 2026 draft (round/pick by player) ──────────────────────────────────────
+draft_2026 = {}      # gsis_id -> (round, pick, team)
+draft_2026_byname = {}
+with open("draft_picks.csv") as fh:
+    for r in csv.DictReader(fh):
+        if r.get("season") != "2026": continue
+        rec = (i(r.get("round")), i(r.get("pick")), norm_draft_team(r.get("team")), r.get("position"))
+        gid = r.get("gsis_id")
+        if gid: draft_2026[gid] = rec
+        draft_2026_byname[norm_name(r.get("pfr_player_name"))] = rec
+
+# ── 2026 roster (who is on each team now) ───────────────────────────────────
+ON_TEAM = {"ACT", "RFA", "RSN", "UDF", "PUP", "RES"}  # exclude UFA (unsigned)
+roster = defaultdict(list)
+with open("roster_2026.csv") as fh:
+    for r in csv.DictReader(fh):
+        if r.get("status") not in ON_TEAM: continue
+        roster[r["team"]].append(r)
+
 def passer_rating(comp, att, yds, tds, ints):
     if att <= 0: return 0.0
     a = max(0, min(2.375, (comp/att - 0.3) * 5))
@@ -108,210 +138,217 @@ def passer_rating(comp, att, yds, tds, ints):
     d = max(0, min(2.375, 2.375 - (ints/att) * 25))
     return round((a+b+c+d)/6 * 100, 1)
 
-# Top QB per team (by attempts)
-qbs_by_team = {}
-for p in players:
-    if p["position"] != "QB": continue
-    t = p["recent_team"]
-    att = i(p.get("attempts"))
-    if att < 20: continue
-    if t not in qbs_by_team or att > i(qbs_by_team[t].get("attempts")):
-        qbs_by_team[t] = p
+def stats_for(roster_row):
+    """Return the player's 2025 stat row if they played in 2025, else None."""
+    gid = roster_row.get("gsis_id")
+    if gid and gid in players_2025:
+        return players_2025[gid]
+    nm = norm_name(roster_row.get("full_name"))
+    return players_2025_byname.get(nm)
 
-# Top WR by receiving_yards
-def top_by(pos, sort_col, min_games=0, filter_fn=None):
-    best = {}
-    for p in players:
-        if filter_fn:
-            if not filter_fn(p): continue
-        elif p["position"] != pos:
-            continue
-        if i(p.get("games")) < min_games: continue
-        t = p["recent_team"]
-        val = f(p.get(sort_col))
-        if t not in best or val > f(best[t].get(sort_col)):
-            best[t] = p
-    return best
+def draft_for(roster_row):
+    gid = roster_row.get("gsis_id")
+    if gid and gid in draft_2026:
+        return draft_2026[gid]
+    return draft_2026_byname.get(norm_name(roster_row.get("full_name")))
 
-top_wr = top_by("WR", "receiving_yards", min_games=3)
-top_rb = top_by("RB", "rushing_yards", min_games=3)
-top_cb = top_by("CB", "def_tackles_solo", min_games=3)
-top_pr = top_by(None, "def_sacks", min_games=3,
-                filter_fn=lambda p: p["position"] in ("DE","DT","OLB","LB","EDGE"))
+def rookie_qb_projection(pick):
+    """Project a rookie QB from draft slot (no NFL stats exist)."""
+    pick = pick or 200
+    grade = max(3.0, min(7.0, 7.0 - (pick - 1) / 28.0))
+    rtg = round(70 + grade * 3.2, 1)
+    return {
+        "rtg": rtg, "grade": round(grade, 1),
+        "tds": max(8, int(round(26 - pick / 12))),
+        "ints": min(16, 9 + pick // 60),
+        "cmp": round(max(58.0, 66.0 - pick / 40.0), 1),
+        "rookie": True,
+    }
 
-# ── Grade helper: rank-based 1-10 ─────────────────────────────────────────
+# ── Per-team grade helpers (rank-based 1-10, computed on 2025) ──────────────
 def grade_ranks(values_dict, higher_better=True):
-    # values_dict: team -> raw value
     items = sorted(values_dict.items(), key=lambda kv: kv[1], reverse=higher_better)
-    grades = {}
-    n = len(items)
-    for idx, (team, _) in enumerate(items):
-        # rank 1 -> 10, rank n -> 1
-        g = 10 - (idx / (n-1)) * 9 if n > 1 else 5.5
-        grades[team] = round(g, 1)
-    return grades
+    n = len(items); out = {}
+    for idx, (k, _) in enumerate(items):
+        out[k] = round(10 - (idx / (n-1)) * 9, 1) if n > 1 else 5.5
+    return out
 
-# Build raw aggregates per team
 agg = {}
 for team, row in team_raw.items():
-    games_played = i(row.get("games"), 17)
-    if games_played == 0: games_played = 17
+    gp = i(row.get("games"), 17) or 17
+    forced = f(row.get("def_interceptions")) + f(row.get("fumble_recovery_opp"))
+    lost = f(row.get("passing_interceptions")) + f(row.get("rushing_fumbles_lost")) + f(row.get("sack_fumbles_lost"))
     agg[team] = {
-        "pass_yds_g":       f(row.get("passing_yards"))    / games_played,
-        "rush_yds_g":       f(row.get("rushing_yards"))    / games_played,
-        "pass_tds":         f(row.get("passing_tds")),
-        "rush_tds":         f(row.get("rushing_tds")),
-        "sacks_suffered":   f(row.get("sacks_suffered")),
-        "def_sacks":        f(row.get("def_sacks")),
-        "def_interceptions": f(row.get("def_interceptions")),
-        "passing_ints":     f(row.get("passing_interceptions")),
-        "rushing_fumbles_lost":   f(row.get("rushing_fumbles_lost")),
-        "sack_fumbles_lost":      f(row.get("sack_fumbles_lost")),
-        "fumble_recovery_opp":    f(row.get("fumble_recovery_opp")),
-        "passing_epa":      f(row.get("passing_epa")),
-        "rushing_epa":      f(row.get("rushing_epa")),
-        "fg_pct":           f(row.get("fg_pct"), 0.80) * 100,
-        "games":            games_played,
+        "pass_yds_g": f(row.get("passing_yards"))/gp,
+        "rush_yds_g": f(row.get("rushing_yards"))/gp,
+        "sacks_suffered": f(row.get("sacks_suffered")),
+        "def_sacks": f(row.get("def_sacks")),
+        "fg_pct": f(row.get("fg_pct"), 0.80)*100,
+        "passing_epa": f(row.get("passing_epa")),
+        "rushing_epa": f(row.get("rushing_epa")),
+        "to_diff": int(forced - lost),
     }
-    # Turnover diff (forced - lost)
-    forced = agg[team]["def_interceptions"] + agg[team]["fumble_recovery_opp"]
-    lost = agg[team]["passing_ints"] + agg[team]["rushing_fumbles_lost"] + agg[team]["sack_fumbles_lost"]
-    agg[team]["to_diff"] = int(forced - lost)
-
-# Opponent passing/rushing yards allowed — need to sum from opponents each week
-opp_pass_yds = defaultdict(float); opp_rush_yds = defaultdict(float); opp_pts = defaultdict(float); opp_games = defaultdict(int)
-# Use games.csv — but stats_team.csv is season totals, so for "yards allowed per game" we need per-game opposing yards which we don't have directly. Use points allowed from record (known), and estimate yards allowed by defensive proxy: rank by (def_sacks + def_interceptions + def_tackles_for_loss) which correlates.
-# For display, use pts_allowed/g and (rank-derived) estimated pass/rush yards allowed.
-
-# ── Build grades ─────────────────────────────────────────────────────────
-# Offense scoring: PPG from record
-ppg = {t: record[t]["pf"] / max(record[t]["g"],1) for t in record}
-papg = {t: record[t]["pa"] / max(record[t]["g"],1) for t in record}
-
-offense_grade = grade_ranks(ppg, higher_better=True)
-defense_grade = grade_ranks(papg, higher_better=False)
-rush_off_grade = grade_ranks({t: agg[t]["rush_yds_g"] for t in agg}, higher_better=True)
-pass_off_grade = grade_ranks({t: agg[t]["pass_yds_g"] for t in agg}, higher_better=True)
-# Defensive "grade" proxies
-# Pass def grade: fewer def pass TDs allowed + more INTs/sacks → but we lack yards allowed. Use def_sacks + def_interceptions + def_pass_defended as proxy.
-def_pass_quality = {}
-def_rush_quality = {}
+ppg  = {t: record[t]["pf"]/max(record[t]["g"],1) for t in record}
+papg = {t: record[t]["pa"]/max(record[t]["g"],1) for t in record}
+offense_grade  = grade_ranks(ppg, True)
+defense_grade  = grade_ranks(papg, False)
+rush_off_grade = grade_ranks({t: agg[t]["rush_yds_g"] for t in agg}, True)
+pass_off_grade = grade_ranks({t: agg[t]["pass_yds_g"] for t in agg}, True)
+to_grade       = grade_ranks({t: agg[t]["to_diff"] for t in agg}, True)
+oline_grade    = grade_ranks({t: agg[t]["sacks_suffered"] for t in agg}, False)
+dline_grade    = grade_ranks({t: agg[t]["def_sacks"] for t in agg}, True)
+st_grade       = grade_ranks({t: agg[t]["fg_pct"] for t in agg}, True)
+off_epa_grade  = grade_ranks({t: agg[t]["passing_epa"]+agg[t]["rushing_epa"] for t in agg}, True)
+home_pct       = {t: (home_rec[t]["w"]/home_rec[t]["g"]*100 if home_rec[t]["g"] else 50.0) for t in agg}
+hf_grade       = grade_ranks(home_pct, True)
+defq_pass = {}; defq_rush = {}
 with open("stats_team.csv") as fh:
     for r in csv.DictReader(fh):
-        if r["season"] != "2025" or r["season_type"] != "REG": continue
-        t = r["team"]
-        def_pass_quality[t] = f(r.get("def_sacks"))*1.2 + f(r.get("def_interceptions"))*2.5 + f(r.get("def_pass_defended"))*0.4
-        def_rush_quality[t] = f(r.get("def_tackles_for_loss"))*1.2 + f(r.get("def_fumbles_forced"))*2.0
-pass_def_grade = grade_ranks(def_pass_quality, higher_better=True)
-rush_def_grade = grade_ranks(def_rush_quality, higher_better=True)
+        if r["season"]!="2025" or r["season_type"]!="REG": continue
+        t=r["team"]
+        defq_pass[t]=f(r.get("def_sacks"))*1.2+f(r.get("def_interceptions"))*2.5+f(r.get("def_pass_defended"))*0.4
+        defq_rush[t]=f(r.get("def_tackles_for_loss"))*1.2+f(r.get("def_fumbles_forced"))*2.0
+pass_def_grade = grade_ranks(defq_pass, True)
+rush_def_grade = grade_ranks(defq_rush, True)
 
-to_grade      = grade_ranks({t: agg[t]["to_diff"] for t in agg}, higher_better=True)
-oline_grade   = grade_ranks({t: agg[t]["sacks_suffered"] for t in agg}, higher_better=False)
-dline_grade   = grade_ranks({t: agg[t]["def_sacks"] for t in agg}, higher_better=True)
-st_grade      = grade_ranks({t: agg[t]["fg_pct"] for t in agg}, higher_better=True)
+# ── Pick 2026 starters & key players, build team objects ───────────────────
+# First pass: collect each team's chosen QB/WR/RB/CB/PR rows for league ranking
+def pick_qb(src):
+    qbs = [r for r in roster.get(src, []) if r.get("position") == "QB"]
+    # 1) a QB this team drafted in 2026 round 1 → projected starter
+    r1 = [r for r in qbs if (draft_for(r) and draft_for(r)[0] == 1)]
+    if r1:
+        r1.sort(key=lambda r: draft_for(r)[1])  # earliest pick
+        return r1[0]
+    # 2) most 2025 pass attempts among signed QBs (vet starter / FA mover)
+    with_stats = []
+    for r in qbs:
+        s = stats_for(r)
+        if s and i(s.get("attempts")) >= 30:
+            with_stats.append((i(s.get("attempts")), r))
+    if with_stats:
+        with_stats.sort(reverse=True, key=lambda x: x[0])
+        return with_stats[0][1]
+    # 3) highest 2026 draft pick QB on the roster
+    drafted = [(draft_for(r)[1], r) for r in qbs if draft_for(r)]
+    if drafted:
+        drafted.sort(key=lambda x: x[0])
+        return drafted[0][1]
+    return qbs[0] if qbs else None
 
-# Estimate third-down % and red-zone TD % from offensive EPA rank
-off_epa = {t: agg[t]["passing_epa"] + agg[t]["rushing_epa"] for t in agg}
-off_epa_grade = grade_ranks(off_epa, higher_better=True)
+def pick_skill(src, positions, stat_col):
+    best, best_v = None, -1
+    for r in roster.get(src, []):
+        if r.get("position") not in positions: continue
+        s = stats_for(r)
+        if not s: continue
+        v = f(s.get(stat_col))
+        if v > best_v: best_v, best = v, (r, s)
+    return best
 
-# QB grades by passing_epa
-qb_epa = {t: f(qbs_by_team[t].get("passing_epa")) if t in qbs_by_team else 0 for t in agg}
-qb_grade_map = grade_ranks(qb_epa, higher_better=True)
-
-# Key player grades (relative)
-wr_yds   = {t: f(top_wr[t].get("receiving_yards"))    if t in top_wr else 0 for t in agg}
-rb_yds   = {t: f(top_rb[t].get("rushing_yards"))      if t in top_rb else 0 for t in agg}
-cb_plays = {t: f(top_cb[t].get("def_pass_defended"))+f(top_cb[t].get("def_interceptions"))*2 if t in top_cb else 0 for t in agg}
-pr_sacks = {t: f(top_pr[t].get("def_sacks"))          if t in top_pr else 0 for t in agg}
-wr_grade = grade_ranks(wr_yds, higher_better=True)
-rb_grade = grade_ranks(rb_yds, higher_better=True)
-cb_grade = grade_ranks(cb_plays, higher_better=True)
-pr_grade = grade_ranks(pr_sacks, higher_better=True)
-
-# Home-field advantage grade from home_win_pct
-home_pct = {t: (home_rec[t]["w"]/home_rec[t]["g"]*100 if home_rec[t]["g"] else 50.0) for t in agg}
-hf_grade = grade_ranks(home_pct, higher_better=True)
-
-# ── Assemble final teams ────────────────────────────────────────────────
-final_teams = []
+chosen = {}
 for meta_abbr, meta in TEAM_META.items():
-    abbr = src_abbr(meta_abbr)
-    if abbr not in agg:
-        print(f"WARN missing 2025 stats for {meta_abbr}", file=sys.stderr)
-        continue
-    row = team_raw[abbr]
-    qb = qbs_by_team.get(abbr)
-    wr = top_wr.get(abbr); rb = top_rb.get(abbr); cb = top_cb.get(abbr); pr = top_pr.get(abbr)
-    off_rank_pct = (off_epa_grade[abbr] - 1) / 9  # 0..1 (worst..best)
-    third_down = round(28 + off_rank_pct * 20, 1)   # 28%..48%
-    red_zone   = round(45 + off_rank_pct * 25, 1)   # 45%..70%
+    src = src_abbr(meta_abbr)
+    qb_row = pick_qb(src)
+    chosen[meta_abbr] = {
+        "src": src,
+        "qb": qb_row,
+        "wr": pick_skill(src, {"WR"}, "receiving_yards"),
+        "rb": pick_skill(src, {"RB"}, "rushing_yards"),
+        "cb": pick_skill(src, {"CB"}, "def_tackles_solo"),
+        "pr": pick_skill(src, {"DE","DT","OLB","LB","EDGE"}, "def_sacks"),
+    }
 
-    pr_rating = passer_rating(i(qb.get("completions")) if qb else 0,
-                              i(qb.get("attempts")) if qb else 0,
-                              i(qb.get("passing_yards")) if qb else 0,
-                              i(qb.get("passing_tds")) if qb else 0,
-                              i(qb.get("passing_interceptions")) if qb else 0)
+# League-wide grades for the chosen players (veterans on 2025 numbers)
+def chosen_qb_epa(c):
+    if not c["qb"]: return -50.0
+    s = stats_for(c["qb"])
+    if s: return f(s.get("passing_epa"))
+    d = draft_for(c["qb"])
+    pick = d[1] if d else 200
+    return -10 + (200 - min(pick,200)) / 20.0  # rookies ranked by draft slot
+qb_epa = {ab: chosen_qb_epa(c) for ab, c in chosen.items()}
+qb_grade_rank = grade_ranks(qb_epa, True)
 
-    # Estimated yards allowed per game by rank (league avg ~ pass 225, rush 115; spread ±50 / ±35)
-    pass_grade_v = pass_def_grade[abbr]
-    rush_grade_v = rush_def_grade[abbr]
-    pass_yds_allowed = round(255 - ((pass_grade_v - 1) / 9) * 70, 1)
-    rush_yds_allowed = round(145 - ((rush_grade_v - 1) / 9) * 60, 1)
+def chosen_stat(c, key, col):
+    pr = c[key]
+    return f(pr[1].get(col)) if pr else 0.0
+wr_grade = grade_ranks({ab: chosen_stat(c,"wr","receiving_yards") for ab,c in chosen.items()}, True)
+rb_grade = grade_ranks({ab: chosen_stat(c,"rb","rushing_yards") for ab,c in chosen.items()}, True)
+cb_grade = grade_ranks({ab: (chosen_stat(c,"cb","def_pass_defended")+chosen_stat(c,"cb","def_interceptions")*2) for ab,c in chosen.items()}, True)
+pr_grade = grade_ranks({ab: chosen_stat(c,"pr","def_sacks") for ab,c in chosen.items()}, True)
 
-    team_obj = {
-        "id": meta["id"],
-        "name": meta["name"],
-        "city": meta["city"],
-        "abbr": meta_abbr,
-        "conference": meta["conference"],
-        "division": meta["division"],
-        "primary": meta["primary"],
-        "secondary": meta["secondary"],
-        "record": {"w": record[abbr]["w"], "l": record[abbr]["l"], "t": record[abbr]["t"]},
-        "pointsPerGame": round(ppg[abbr], 1),
-        "pointsAllowed": round(papg[abbr], 1),
-        "qb": {
-            "name": qb.get("player_display_name") if qb else "—",
-            "passerRating": pr_rating,
-            "touchdowns": i(qb.get("passing_tds")) if qb else 0,
-            "interceptions": i(qb.get("passing_interceptions")) if qb else 0,
-            "completionPct": round(i(qb.get("completions"))/max(i(qb.get("attempts")),1)*100,1) if qb else 0.0,
-            "grade": qb_grade_map[abbr],
-        },
-        "offenseLine": {"grade": oline_grade[abbr]},
-        "defenseLine": {"grade": dline_grade[abbr]},
-        "rushOffense": {"yardsPerGame": round(agg[abbr]["rush_yds_g"],1), "grade": rush_off_grade[abbr]},
-        "passOffense": {"yardsPerGame": round(agg[abbr]["pass_yds_g"],1), "grade": pass_off_grade[abbr]},
-        "rushDefense": {"yardsAllowed": rush_yds_allowed, "grade": rush_def_grade[abbr]},
-        "passDefense": {"yardsAllowed": pass_yds_allowed, "grade": pass_def_grade[abbr]},
-        "thirdDownPct": third_down,
-        "redZonePct": red_zone,
-        "turnoverDiff": agg[abbr]["to_diff"],
-        "specialTeams": {"fgPct": round(agg[abbr]["fg_pct"],1), "grade": st_grade[abbr]},
+final_teams = []
+rookie_qbs = []
+for meta_abbr, meta in TEAM_META.items():
+    src = src_abbr(meta_abbr)
+    if src not in agg:
+        print(f"WARN no 2025 team stats for {meta_abbr}", file=sys.stderr); continue
+    c = chosen[meta_abbr]
+    qb_row = c["qb"]
+    qb_name = qb_row.get("full_name") if qb_row else "—"
+    qs = stats_for(qb_row) if qb_row else None
+    if qs and i(qs.get("attempts")) >= 1:
+        pr_rt = passer_rating(i(qs.get("completions")), i(qs.get("attempts")),
+                              i(qs.get("passing_yards")), i(qs.get("passing_tds")),
+                              i(qs.get("passing_interceptions")))
+        qb_obj = {
+            "name": qb_name, "passerRating": pr_rt,
+            "touchdowns": i(qs.get("passing_tds")),
+            "interceptions": i(qs.get("passing_interceptions")),
+            "completionPct": round(i(qs.get("completions"))/max(i(qs.get("attempts")),1)*100,1),
+            "grade": qb_grade_rank[meta_abbr], "rookie": False,
+        }
+    else:
+        d = draft_for(qb_row) if qb_row else None
+        proj = rookie_qb_projection(d[1] if d else 200)
+        qb_obj = {
+            "name": qb_name, "passerRating": proj["rtg"],
+            "touchdowns": proj["tds"], "interceptions": proj["ints"],
+            "completionPct": proj["cmp"], "grade": qb_grade_rank[meta_abbr],
+            "rookie": True,
+        }
+        rookie_qbs.append(f"{meta_abbr}:{qb_name}"
+                          + (f" (R{d[0]} #{d[1]})" if d else ""))
+
+    def kp_name(key):
+        return c[key][0].get("full_name") if c[key] else "—"
+
+    final_teams.append({
+        "id": meta["id"], "name": meta["name"], "city": meta["city"],
+        "abbr": meta_abbr, "conference": meta["conference"], "division": meta["division"],
+        "primary": meta["primary"], "secondary": meta["secondary"],
+        "record": {"w": record[src]["w"], "l": record[src]["l"], "t": record[src]["t"]},
+        "pointsPerGame": round(ppg[src],1), "pointsAllowed": round(papg[src],1),
+        "qb": qb_obj,
+        "offenseLine": {"grade": oline_grade[src]},
+        "defenseLine": {"grade": dline_grade[src]},
+        "rushOffense": {"yardsPerGame": round(agg[src]["rush_yds_g"],1), "grade": rush_off_grade[src]},
+        "passOffense": {"yardsPerGame": round(agg[src]["pass_yds_g"],1), "grade": pass_off_grade[src]},
+        "rushDefense": {"yardsAllowed": round(145-((rush_def_grade[src]-1)/9)*60,1), "grade": rush_def_grade[src]},
+        "passDefense": {"yardsAllowed": round(255-((pass_def_grade[src]-1)/9)*70,1), "grade": pass_def_grade[src]},
+        "thirdDownPct": round(28+((off_epa_grade[src]-1)/9)*20,1),
+        "redZonePct": round(45+((off_epa_grade[src]-1)/9)*25,1),
+        "turnoverDiff": agg[src]["to_diff"],
+        "specialTeams": {"fgPct": round(agg[src]["fg_pct"],1), "grade": st_grade[src]},
         "coach": meta["coach"],
-        "homeField": {
-            "stadium": meta["stadium"],
-            "isOutdoor": meta["isOutdoor"],
-            "homeWinPct": round(home_pct[abbr],1),
-            "advantageGrade": hf_grade[abbr],
-        },
-        "recentForm": results_by_team[abbr][-5:][::-1] if results_by_team[abbr] else [],
+        "homeField": {"stadium": meta["stadium"], "isOutdoor": meta["isOutdoor"],
+                      "homeWinPct": round(home_pct[src],1), "advantageGrade": hf_grade[src]},
+        "recentForm": results_by_team[src][-5:][::-1] if results_by_team[src] else [],
         "keyPlayers": {
-            "wr1": {"name": wr.get("player_display_name") if wr else "—", "grade": wr_grade[abbr]},
-            "rb1": {"name": rb.get("player_display_name") if rb else "—", "grade": rb_grade[abbr]},
-            "cb1": {"name": cb.get("player_display_name") if cb else "—", "grade": cb_grade[abbr]},
-            "pass_rusher": {"name": pr.get("player_display_name") if pr else "—", "grade": pr_grade[abbr]},
+            "wr1": {"name": kp_name("wr"), "grade": wr_grade[meta_abbr]},
+            "rb1": {"name": kp_name("rb"), "grade": rb_grade[meta_abbr]},
+            "cb1": {"name": kp_name("cb"), "grade": cb_grade[meta_abbr]},
+            "pass_rusher": {"name": kp_name("pr"), "grade": pr_grade[meta_abbr]},
         },
         "injuryImpact": 0.0,
         "playoffExperience": meta["playoffExperience"],
-    }
-    final_teams.append(team_obj)
+    })
 
-# Sort by city for determinism
 final_teams.sort(key=lambda t: t["abbr"])
-
 with open("/tmp/nfl/nfl_teams_generated.js", "w") as fh:
     fh.write("const NFL_TEAMS = ")
     json.dump(final_teams, fh, indent=2)
     fh.write(";\n")
 print(f"Generated {len(final_teams)} teams.")
+print(f"Rookie/projected QBs ({len(rookie_qbs)}): " + ", ".join(sorted(rookie_qbs)))

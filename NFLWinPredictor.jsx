@@ -175,7 +175,8 @@ const NFL_TEAMS = [
       "touchdowns": 23,
       "interceptions": 8,
       "completionPct": 64.9,
-      "grade": 3.3
+      "grade": 3.0,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 2.2
@@ -226,19 +227,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Michael Wilson",
-        "grade": 5.9
+        "grade": 6.2
       },
       "rb1": {
-        "name": "Michael Carter",
-        "grade": 1.0
+        "name": "Tyler Allgeier",
+        "grade": 1.6
       },
       "cb1": {
-        "name": "Denzel Burke",
-        "grade": 6.8
+        "name": "\u2014",
+        "grade": 10.0
       },
       "pass_rusher": {
         "name": "Josh Sweat",
-        "grade": 8.0
+        "grade": 9.1
       }
     },
     "injuryImpact": 0.0,
@@ -261,12 +262,13 @@ const NFL_TEAMS = [
     "pointsPerGame": 20.8,
     "pointsAllowed": 23.6,
     "qb": {
-      "name": "Michael Penix Jr.",
+      "name": "Tua Tagovailoa",
       "passerRating": 88.5,
-      "touchdowns": 9,
-      "interceptions": 3,
-      "completionPct": 60.1,
-      "grade": 4.5
+      "touchdowns": 20,
+      "interceptions": 15,
+      "completionPct": 67.7,
+      "grade": 5.4,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 9.1
@@ -317,19 +319,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Drake London",
-        "grade": 5.1
+        "grade": 5.4
       },
       "rb1": {
         "name": "Bijan Robinson",
         "grade": 9.1
       },
       "cb1": {
-        "name": "Dee Alford",
-        "grade": 7.4
+        "name": "\u2014",
+        "grade": 9.7
       },
       "pass_rusher": {
-        "name": "James Pearce Jr.",
-        "grade": 7.1
+        "name": "LaCale London",
+        "grade": 5.4
       }
     },
     "injuryImpact": 0.0,
@@ -357,7 +359,8 @@ const NFL_TEAMS = [
       "touchdowns": 21,
       "interceptions": 7,
       "completionPct": 63.6,
-      "grade": 5.4
+      "grade": 5.9,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 4.2
@@ -415,12 +418,12 @@ const NFL_TEAMS = [
         "grade": 9.7
       },
       "cb1": {
-        "name": "Nate Wiggins",
-        "grade": 8.5
+        "name": "\u2014",
+        "grade": 9.4
       },
       "pass_rusher": {
-        "name": "Dre'Mont Jones",
-        "grade": 3.3
+        "name": "Tavius Robinson",
+        "grade": 4.2
       }
     },
     "injuryImpact": 0.0,
@@ -448,7 +451,8 @@ const NFL_TEAMS = [
       "touchdowns": 25,
       "interceptions": 10,
       "completionPct": 69.3,
-      "grade": 8.3
+      "grade": 8.5,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 4.8
@@ -499,19 +503,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Khalil Shakir",
-        "grade": 3.0
+        "grade": 3.9
       },
       "rb1": {
         "name": "James Cook",
         "grade": 10.0
       },
       "cb1": {
-        "name": "Taron Johnson",
-        "grade": 1.0
+        "name": "\u2014",
+        "grade": 9.1
       },
       "pass_rusher": {
-        "name": "Greg Rousseau",
-        "grade": 3.0
+        "name": "Bradley Chubb",
+        "grade": 8.3
       }
     },
     "injuryImpact": 0.0,
@@ -539,7 +543,8 @@ const NFL_TEAMS = [
       "touchdowns": 23,
       "interceptions": 11,
       "completionPct": 63.6,
-      "grade": 2.7
+      "grade": 2.5,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 6.8
@@ -593,16 +598,16 @@ const NFL_TEAMS = [
         "grade": 7.1
       },
       "rb1": {
-        "name": "Rico Dowdle",
-        "grade": 6.2
+        "name": "Chuba Hubbard",
+        "grade": 1.3
       },
       "cb1": {
-        "name": "Mike Jackson",
-        "grade": 10.0
+        "name": "\u2014",
+        "grade": 8.8
       },
       "pass_rusher": {
-        "name": "Derrick Brown",
-        "grade": 1.3
+        "name": "Jaelan Phillips",
+        "grade": 5.1
       }
     },
     "injuryImpact": 0.0,
@@ -630,7 +635,8 @@ const NFL_TEAMS = [
       "touchdowns": 27,
       "interceptions": 7,
       "completionPct": 58.1,
-      "grade": 6.5
+      "grade": 6.8,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 9.4
@@ -680,20 +686,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "DJ Moore",
-        "grade": 2.5
+        "name": "Rome Odunze",
+        "grade": 3.3
       },
       "rb1": {
         "name": "D'Andre Swift",
         "grade": 6.8
       },
       "cb1": {
-        "name": "Nahshon Wright",
-        "grade": 9.1
+        "name": "\u2014",
+        "grade": 8.5
       },
       "pass_rusher": {
         "name": "Montez Sweat",
-        "grade": 6.5
+        "grade": 8.8
       }
     },
     "injuryImpact": 0.0,
@@ -721,7 +727,8 @@ const NFL_TEAMS = [
       "touchdowns": 15,
       "interceptions": 10,
       "completionPct": 60.3,
-      "grade": 2.2
+      "grade": 2.2,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 6.2
@@ -779,12 +786,12 @@ const NFL_TEAMS = [
         "grade": 5.4
       },
       "cb1": {
-        "name": "Daxton Hill",
-        "grade": 5.6
+        "name": "\u2014",
+        "grade": 8.3
       },
       "pass_rusher": {
-        "name": "Myles Murphy",
-        "grade": 1.6
+        "name": "Demetrius Knight Jr.",
+        "grade": 3.0
       }
     },
     "injuryImpact": 0.0,
@@ -812,7 +819,8 @@ const NFL_TEAMS = [
       "touchdowns": 7,
       "interceptions": 10,
       "completionPct": 56.6,
-      "grade": 1.6
+      "grade": 1.6,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 2.7
@@ -863,19 +871,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Jerry Jeudy",
-        "grade": 1.9
+        "grade": 2.7
       },
       "rb1": {
         "name": "Quinshon Judkins",
-        "grade": 3.9
+        "grade": 4.2
       },
       "cb1": {
-        "name": "Tyson Campbell",
-        "grade": 8.3
+        "name": "\u2014",
+        "grade": 8.0
       },
       "pass_rusher": {
-        "name": "Myles Garrett",
-        "grade": 10.0
+        "name": "Quincy Williams",
+        "grade": 3.6
       }
     },
     "injuryImpact": 0.0,
@@ -903,7 +911,8 @@ const NFL_TEAMS = [
       "touchdowns": 30,
       "interceptions": 10,
       "completionPct": 67.3,
-      "grade": 9.4
+      "grade": 9.7,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 7.7
@@ -961,12 +970,12 @@ const NFL_TEAMS = [
         "grade": 7.7
       },
       "cb1": {
-        "name": "DaRon Bland",
-        "grade": 2.5
+        "name": "\u2014",
+        "grade": 7.7
       },
       "pass_rusher": {
-        "name": "Jadeveon Clowney",
-        "grade": 5.4
+        "name": "Rashan Gary",
+        "grade": 7.1
       }
     },
     "injuryImpact": 0.0,
@@ -994,7 +1003,8 @@ const NFL_TEAMS = [
       "touchdowns": 25,
       "interceptions": 11,
       "completionPct": 63.4,
-      "grade": 7.4
+      "grade": 7.7,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 10.0
@@ -1048,16 +1058,16 @@ const NFL_TEAMS = [
         "grade": 7.4
       },
       "rb1": {
-        "name": "J.K. Dobbins",
-        "grade": 3.3
+        "name": "RJ Harvey",
+        "grade": 1.9
       },
       "cb1": {
-        "name": "Riley Moss",
-        "grade": 8.8
+        "name": "\u2014",
+        "grade": 7.4
       },
       "pass_rusher": {
         "name": "Nik Bonitto",
-        "grade": 8.8
+        "grade": 10.0
       }
     },
     "injuryImpact": 0.0,
@@ -1085,7 +1095,8 @@ const NFL_TEAMS = [
       "touchdowns": 34,
       "interceptions": 8,
       "completionPct": 68.0,
-      "grade": 8.8
+      "grade": 9.1,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 5.1
@@ -1143,12 +1154,12 @@ const NFL_TEAMS = [
         "grade": 8.3
       },
       "cb1": {
-        "name": "Amik Robertson",
-        "grade": 5.9
+        "name": "\u2014",
+        "grade": 7.1
       },
       "pass_rusher": {
-        "name": "Aidan Hutchinson",
-        "grade": 9.1
+        "name": "Jack Campbell",
+        "grade": 4.8
       }
     },
     "injuryImpact": 0.0,
@@ -1176,7 +1187,8 @@ const NFL_TEAMS = [
       "touchdowns": 23,
       "interceptions": 6,
       "completionPct": 66.3,
-      "grade": 9.1
+      "grade": 9.4,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 8.3
@@ -1226,20 +1238,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Romeo Doubs",
-        "grade": 3.3
+        "name": "Christian Watson",
+        "grade": 3.0
       },
       "rb1": {
         "name": "Josh Jacobs",
-        "grade": 4.5
+        "grade": 4.8
       },
       "cb1": {
-        "name": "Keisean Nixon",
-        "grade": 7.1
+        "name": "\u2014",
+        "grade": 6.8
       },
       "pass_rusher": {
         "name": "Micah Parsons",
-        "grade": 8.3
+        "grade": 9.4
       }
     },
     "injuryImpact": 0.0,
@@ -1267,7 +1279,8 @@ const NFL_TEAMS = [
       "touchdowns": 19,
       "interceptions": 8,
       "completionPct": 64.5,
-      "grade": 7.1
+      "grade": 7.4,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 7.4
@@ -1321,16 +1334,16 @@ const NFL_TEAMS = [
         "grade": 8.0
       },
       "rb1": {
-        "name": "Woody Marks",
-        "grade": 2.5
+        "name": "David Montgomery",
+        "grade": 2.7
       },
       "cb1": {
-        "name": "Kamari Lassiter",
-        "grade": 9.7
+        "name": "\u2014",
+        "grade": 6.5
       },
       "pass_rusher": {
-        "name": "Danielle Hunter",
-        "grade": 9.4
+        "name": "Henry To'oTo'o",
+        "grade": 2.7
       }
     },
     "injuryImpact": 0.0,
@@ -1358,7 +1371,8 @@ const NFL_TEAMS = [
       "touchdowns": 19,
       "interceptions": 8,
       "completionPct": 68.0,
-      "grade": 7.7
+      "grade": 8.0,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 8.0
@@ -1409,19 +1423,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Alec Pierce",
-        "grade": 5.6
+        "grade": 5.9
       },
       "rb1": {
         "name": "Jonathan Taylor",
         "grade": 9.4
       },
       "cb1": {
-        "name": "Mekhi Blackmon",
-        "grade": 5.1
+        "name": "\u2014",
+        "grade": 6.2
       },
       "pass_rusher": {
-        "name": "Laiatu Latu",
-        "grade": 5.1
+        "name": "Austin Ajiake",
+        "grade": 1.0
       }
     },
     "injuryImpact": 0.0,
@@ -1449,7 +1463,8 @@ const NFL_TEAMS = [
       "touchdowns": 29,
       "interceptions": 12,
       "completionPct": 60.9,
-      "grade": 6.2
+      "grade": 6.5,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 4.5
@@ -1500,19 +1515,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Parker Washington",
-        "grade": 4.2
+        "grade": 4.8
       },
       "rb1": {
-        "name": "Travis Etienne",
-        "grade": 7.1
+        "name": "Chris Rodriguez Jr.",
+        "grade": 1.0
       },
       "cb1": {
-        "name": "Montaric Brown",
-        "grade": 6.5
+        "name": "\u2014",
+        "grade": 5.9
       },
       "pass_rusher": {
         "name": "Josh Hines-Allen",
-        "grade": 4.2
+        "grade": 7.7
       }
     },
     "injuryImpact": 0.0,
@@ -1540,7 +1555,8 @@ const NFL_TEAMS = [
       "touchdowns": 22,
       "interceptions": 11,
       "completionPct": 62.7,
-      "grade": 8.0
+      "grade": 8.3,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 3.9
@@ -1590,20 +1606,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Marquise Brown",
-        "grade": 1.6
+        "name": "Rashee Rice",
+        "grade": 2.2
       },
       "rb1": {
-        "name": "Kareem Hunt",
-        "grade": 1.9
+        "name": "Kenneth Walker III",
+        "grade": 5.6
       },
       "cb1": {
-        "name": "Trent McDuffie",
-        "grade": 3.3
+        "name": "\u2014",
+        "grade": 5.6
       },
       "pass_rusher": {
-        "name": "Chris Jones",
-        "grade": 2.7
+        "name": "Drue Tranquill",
+        "grade": 2.2
       }
     },
     "injuryImpact": 0.0,
@@ -1631,7 +1647,8 @@ const NFL_TEAMS = [
       "touchdowns": 26,
       "interceptions": 13,
       "completionPct": 66.4,
-      "grade": 5.1
+      "grade": 5.6,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 1.9
@@ -1682,19 +1699,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Ladd McConkey",
-        "grade": 3.9
+        "grade": 4.5
       },
       "rb1": {
         "name": "Kimani Vidal",
-        "grade": 2.2
+        "grade": 2.5
       },
       "cb1": {
-        "name": "Cam Hart",
+        "name": "\u2014",
         "grade": 5.4
       },
       "pass_rusher": {
         "name": "Tuli Tuipulotu",
-        "grade": 8.5
+        "grade": 9.7
       }
     },
     "injuryImpact": 0.0,
@@ -1717,12 +1734,13 @@ const NFL_TEAMS = [
     "pointsPerGame": 30.5,
     "pointsAllowed": 20.4,
     "qb": {
-      "name": "Matthew Stafford",
-      "passerRating": 109.2,
-      "touchdowns": 46,
-      "interceptions": 8,
-      "completionPct": 65.0,
-      "grade": 9.7
+      "name": "Ty Simpson",
+      "passerRating": 91.0,
+      "touchdowns": 25,
+      "interceptions": 9,
+      "completionPct": 65.7,
+      "grade": 3.6,
+      "rookie": true
     },
     "offenseLine": {
       "grade": 9.7
@@ -1780,12 +1798,12 @@ const NFL_TEAMS = [
         "grade": 8.5
       },
       "cb1": {
-        "name": "Emmanuel Forbes",
-        "grade": 9.4
+        "name": "\u2014",
+        "grade": 5.1
       },
       "pass_rusher": {
-        "name": "Byron Young",
-        "grade": 7.7
+        "name": "Jared Verse",
+        "grade": 6.8
       }
     },
     "injuryImpact": 0.0,
@@ -1808,12 +1826,13 @@ const NFL_TEAMS = [
     "pointsPerGame": 14.2,
     "pointsAllowed": 25.4,
     "qb": {
-      "name": "Geno Smith",
-      "passerRating": 84.7,
-      "touchdowns": 19,
-      "interceptions": 17,
-      "completionPct": 67.4,
-      "grade": 1.3
+      "name": "Fernando Mendoza",
+      "passerRating": 92.4,
+      "touchdowns": 26,
+      "interceptions": 9,
+      "completionPct": 66.0,
+      "grade": 3.9,
+      "rookie": true
     },
     "offenseLine": {
       "grade": 1.0
@@ -1864,19 +1883,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Tre Tucker",
-        "grade": 2.7
+        "grade": 3.6
       },
       "rb1": {
         "name": "Ashton Jeanty",
         "grade": 5.1
       },
       "cb1": {
-        "name": "Eric Stokes",
-        "grade": 1.6
+        "name": "\u2014",
+        "grade": 4.8
       },
       "pass_rusher": {
-        "name": "Maxx Crosby",
-        "grade": 6.2
+        "name": "Nakobe Dean",
+        "grade": 3.9
       }
     },
     "injuryImpact": 0.0,
@@ -1899,12 +1918,13 @@ const NFL_TEAMS = [
     "pointsPerGame": 20.4,
     "pointsAllowed": 24.9,
     "qb": {
-      "name": "Tua Tagovailoa",
-      "passerRating": 88.5,
-      "touchdowns": 20,
-      "interceptions": 15,
-      "completionPct": 67.7,
-      "grade": 4.8
+      "name": "Quinn Ewers",
+      "passerRating": 85.5,
+      "touchdowns": 3,
+      "interceptions": 3,
+      "completionPct": 66.3,
+      "grade": 3.3,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 5.6
@@ -1954,20 +1974,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Jaylen Waddle",
-        "grade": 4.8
+        "name": "Malik Washington",
+        "grade": 1.0
       },
       "rb1": {
         "name": "De'Von Achane",
         "grade": 8.8
       },
       "cb1": {
-        "name": "Jack Jones",
-        "grade": 2.2
+        "name": "\u2014",
+        "grade": 4.5
       },
       "pass_rusher": {
-        "name": "Bradley Chubb",
-        "grade": 4.8
+        "name": "Tyrel Dodson",
+        "grade": 4.5
       }
     },
     "injuryImpact": 0.0,
@@ -1995,7 +2015,8 @@ const NFL_TEAMS = [
       "touchdowns": 11,
       "interceptions": 12,
       "completionPct": 57.6,
-      "grade": 1.9
+      "grade": 1.9,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 1.6
@@ -2050,15 +2071,15 @@ const NFL_TEAMS = [
       },
       "rb1": {
         "name": "Jordan Mason",
-        "grade": 3.0
+        "grade": 3.6
       },
       "cb1": {
-        "name": "Byron Murphy",
-        "grade": 4.8
+        "name": "\u2014",
+        "grade": 4.2
       },
       "pass_rusher": {
         "name": "Dallas Turner",
-        "grade": 3.9
+        "grade": 7.4
       }
     },
     "injuryImpact": 0.0,
@@ -2086,7 +2107,8 @@ const NFL_TEAMS = [
       "touchdowns": 31,
       "interceptions": 8,
       "completionPct": 72.0,
-      "grade": 10.0
+      "grade": 10.0,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 3.6
@@ -2136,20 +2158,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Stefon Diggs",
-        "grade": 6.5
+        "name": "Romeo Doubs",
+        "grade": 4.2
       },
       "rb1": {
         "name": "TreVeyon Henderson",
-        "grade": 4.2
+        "grade": 4.5
       },
       "cb1": {
-        "name": "Christian Gonzalez",
-        "grade": 4.2
+        "name": "\u2014",
+        "grade": 3.9
       },
       "pass_rusher": {
         "name": "Harold Landry III",
-        "grade": 4.5
+        "grade": 8.0
       }
     },
     "injuryImpact": 0.0,
@@ -2177,7 +2199,8 @@ const NFL_TEAMS = [
       "touchdowns": 10,
       "interceptions": 6,
       "completionPct": 67.6,
-      "grade": 3.9
+      "grade": 4.5,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 3.0
@@ -2231,16 +2254,16 @@ const NFL_TEAMS = [
         "grade": 8.3
       },
       "rb1": {
-        "name": "Alvin Kamara",
-        "grade": 1.3
+        "name": "Travis Etienne",
+        "grade": 7.1
       },
       "cb1": {
-        "name": "Alontae Taylor",
-        "grade": 6.2
+        "name": "\u2014",
+        "grade": 3.6
       },
       "pass_rusher": {
-        "name": "Cameron Jordan",
-        "grade": 6.8
+        "name": "Kaden Elliss",
+        "grade": 3.3
       }
     },
     "injuryImpact": 0.0,
@@ -2268,7 +2291,8 @@ const NFL_TEAMS = [
       "touchdowns": 15,
       "interceptions": 5,
       "completionPct": 63.7,
-      "grade": 4.2
+      "grade": 5.1,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 3.3
@@ -2318,20 +2342,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Wan'Dale Robinson",
-        "grade": 6.8
+        "name": "Darius Slayton",
+        "grade": 1.9
       },
       "rb1": {
         "name": "Tyrone Tracy Jr.",
-        "grade": 2.7
+        "grade": 3.3
       },
       "cb1": {
-        "name": "Paulson Adebo",
-        "grade": 3.9
+        "name": "\u2014",
+        "grade": 3.3
       },
       "pass_rusher": {
-        "name": "Brian Burns",
-        "grade": 9.7
+        "name": "Kayvon Thibodeaux",
+        "grade": 2.5
       }
     },
     "injuryImpact": 0.0,
@@ -2354,12 +2378,13 @@ const NFL_TEAMS = [
     "pointsPerGame": 17.6,
     "pointsAllowed": 29.6,
     "qb": {
-      "name": "Justin Fields",
-      "passerRating": 89.5,
-      "touchdowns": 7,
-      "interceptions": 1,
-      "completionPct": 62.7,
-      "grade": 2.5
+      "name": "Geno Smith",
+      "passerRating": 84.7,
+      "touchdowns": 19,
+      "interceptions": 17,
+      "completionPct": 67.4,
+      "grade": 1.3,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 1.3
@@ -2410,19 +2435,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Adonai Mitchell",
-        "grade": 1.0
+        "grade": 1.3
       },
       "rb1": {
         "name": "Breece Hall",
         "grade": 5.9
       },
       "cb1": {
-        "name": "Brandon Stephens",
+        "name": "\u2014",
         "grade": 3.0
       },
       "pass_rusher": {
-        "name": "Will McDonald IV",
-        "grade": 3.6
+        "name": "Jamien Sherwood",
+        "grade": 1.9
       }
     },
     "injuryImpact": 0.0,
@@ -2450,7 +2475,8 @@ const NFL_TEAMS = [
       "touchdowns": 25,
       "interceptions": 6,
       "completionPct": 64.8,
-      "grade": 5.9
+      "grade": 6.2,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 6.5
@@ -2501,19 +2527,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "DeVonta Smith",
-        "grade": 6.2
+        "grade": 6.5
       },
       "rb1": {
         "name": "Saquon Barkley",
         "grade": 7.4
       },
       "cb1": {
-        "name": "Cooper DeJean",
-        "grade": 8.0
+        "name": "\u2014",
+        "grade": 2.7
       },
       "pass_rusher": {
         "name": "Jalyx Hunt",
-        "grade": 1.9
+        "grade": 5.6
       }
     },
     "injuryImpact": 0.0,
@@ -2536,12 +2562,13 @@ const NFL_TEAMS = [
     "pointsPerGame": 23.4,
     "pointsAllowed": 22.8,
     "qb": {
-      "name": "Aaron Rodgers",
-      "passerRating": 94.8,
-      "touchdowns": 24,
-      "interceptions": 7,
-      "completionPct": 65.7,
-      "grade": 5.6
+      "name": "Mason Rudolph",
+      "passerRating": 84.6,
+      "touchdowns": 2,
+      "interceptions": 2,
+      "completionPct": 73.1,
+      "grade": 4.8,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 7.1
@@ -2592,19 +2619,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "DK Metcalf",
-        "grade": 4.5
+        "grade": 5.1
       },
       "rb1": {
-        "name": "Jaylen Warren",
-        "grade": 4.8
+        "name": "Rico Dowdle",
+        "grade": 6.2
       },
       "cb1": {
-        "name": "Jalen Ramsey",
-        "grade": 3.6
+        "name": "\u2014",
+        "grade": 2.5
       },
       "pass_rusher": {
         "name": "Alex Highsmith",
-        "grade": 5.9
+        "grade": 8.5
       }
     },
     "injuryImpact": 0.0,
@@ -2632,7 +2659,8 @@ const NFL_TEAMS = [
       "touchdowns": 25,
       "interceptions": 14,
       "completionPct": 67.7,
-      "grade": 8.5
+      "grade": 8.8,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 8.8
@@ -2686,16 +2714,16 @@ const NFL_TEAMS = [
         "grade": 10.0
       },
       "rb1": {
-        "name": "Kenneth Walker III",
-        "grade": 5.6
+        "name": "Zach Charbonnet",
+        "grade": 3.0
       },
       "cb1": {
-        "name": "Devon Witherspoon",
-        "grade": 2.7
+        "name": "\u2014",
+        "grade": 2.2
       },
       "pass_rusher": {
-        "name": "Leonard Williams",
-        "grade": 2.5
+        "name": "Uchenna Nwosu",
+        "grade": 6.2
       }
     },
     "injuryImpact": 0.0,
@@ -2723,7 +2751,8 @@ const NFL_TEAMS = [
       "touchdowns": 13,
       "interceptions": 6,
       "completionPct": 69.6,
-      "grade": 6.8
+      "grade": 7.1,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 8.5
@@ -2773,20 +2802,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Jauan Jennings",
-        "grade": 2.2
+        "name": "Ricky Pearsall",
+        "grade": 1.6
       },
       "rb1": {
         "name": "Christian McCaffrey",
         "grade": 8.0
       },
       "cb1": {
-        "name": "Upton Stout",
-        "grade": 1.3
+        "name": "\u2014",
+        "grade": 1.9
       },
       "pass_rusher": {
-        "name": "Clelin Ferrell",
-        "grade": 1.0
+        "name": "Dre Greenlaw",
+        "grade": 1.6
       }
     },
     "injuryImpact": 0.0,
@@ -2814,7 +2843,8 @@ const NFL_TEAMS = [
       "touchdowns": 26,
       "interceptions": 11,
       "completionPct": 63.2,
-      "grade": 3.6
+      "grade": 4.2,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 5.4
@@ -2865,19 +2895,19 @@ const NFL_TEAMS = [
     "keyPlayers": {
       "wr1": {
         "name": "Emeka Egbuka",
-        "grade": 5.4
+        "grade": 5.6
       },
       "rb1": {
         "name": "Bucky Irving",
-        "grade": 1.6
+        "grade": 2.2
       },
       "cb1": {
-        "name": "Jacob Parrish",
-        "grade": 4.5
+        "name": "\u2014",
+        "grade": 1.6
       },
       "pass_rusher": {
         "name": "Yaya Diaby",
-        "grade": 2.2
+        "grade": 5.9
       }
     },
     "injuryImpact": 0.0,
@@ -2905,7 +2935,8 @@ const NFL_TEAMS = [
       "touchdowns": 15,
       "interceptions": 7,
       "completionPct": 59.8,
-      "grade": 1.0
+      "grade": 1.0,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 2.5
@@ -2955,20 +2986,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Elic Ayomanor",
-        "grade": 1.3
+        "name": "Wan'Dale Robinson",
+        "grade": 6.8
       },
       "rb1": {
         "name": "Tony Pollard",
         "grade": 6.5
       },
       "cb1": {
-        "name": "Darrell Baker Jr.",
-        "grade": 1.9
+        "name": "\u2014",
+        "grade": 1.3
       },
       "pass_rusher": {
-        "name": "Jeffery Simmons",
-        "grade": 7.4
+        "name": "Cody Barton",
+        "grade": 1.3
       }
     },
     "injuryImpact": 0.0,
@@ -2991,12 +3022,13 @@ const NFL_TEAMS = [
     "pointsPerGame": 20.9,
     "pointsAllowed": 26.5,
     "qb": {
-      "name": "Marcus Mariota",
-      "passerRating": 86.1,
-      "touchdowns": 10,
-      "interceptions": 7,
-      "completionPct": 61.2,
-      "grade": 3.0
+      "name": "Jayden Daniels",
+      "passerRating": 88.1,
+      "touchdowns": 8,
+      "interceptions": 3,
+      "completionPct": 60.6,
+      "grade": 2.7,
+      "rookie": false
     },
     "offenseLine": {
       "grade": 5.9
@@ -3046,20 +3078,20 @@ const NFL_TEAMS = [
     ],
     "keyPlayers": {
       "wr1": {
-        "name": "Deebo Samuel Sr.",
-        "grade": 3.6
+        "name": "Terry McLaurin",
+        "grade": 2.5
       },
       "rb1": {
         "name": "Jacory Croskey-Merritt",
-        "grade": 3.6
+        "grade": 3.9
       },
       "cb1": {
-        "name": "Mike Sainristil",
-        "grade": 7.7
+        "name": "\u2014",
+        "grade": 1.0
       },
       "pass_rusher": {
-        "name": "Von Miller",
-        "grade": 5.6
+        "name": "K'Lavon Chaisson",
+        "grade": 6.5
       }
     },
     "injuryImpact": 0.0,
@@ -3186,12 +3218,15 @@ function calculateMatchup(teamA, teamB, opts = {}) {
   // Driven by passer rating so the displayed stat matches the decision.
   // 2025 ratings range ~68-113 → coefficient 0.25 keeps deltas reasonable
   // (1-pt diff = 0.25%, 10-pt = 2.5%, 30-pt = 7.5%); cap at ±10.
+  // Rookie QBs have no NFL stats — their rating is a draft-slot projection.
   {
     const delta = clamp((teamA.qb.passerRating - teamB.qb.passerRating) * 0.25, -10, 10);
+    const qbStat = (q) =>
+      `${q.name} · ${q.passerRating.toFixed(1)} rtg${q.rookie ? " (proj)" : ""}`;
     factors.push({
       ...FACTOR_DEFS[3],
-      teamAValue: `${teamA.qb.name} · ${teamA.qb.passerRating.toFixed(1)} rtg`,
-      teamBValue: `${teamB.qb.name} · ${teamB.qb.passerRating.toFixed(1)} rtg`,
+      teamAValue: qbStat(teamA.qb),
+      teamBValue: qbStat(teamB.qb),
       winner: winnerOf(delta), delta, magnitude: magnitudeOf(delta),
     });
   }
@@ -3591,7 +3626,7 @@ function TeamPicker({ value, onChange, excludeId, side, allTeams }) {
             <Pill emphasis>
               {team.record.w}-{team.record.l}{team.record.t ? `-${team.record.t}` : ""}
             </Pill>
-            <Pill>QB: {team.qb.name}</Pill>
+            <Pill>QB: {team.qb.name}{team.qb.rookie ? " (R)" : ""}</Pill>
             <Pill>{team.pointsPerGame.toFixed(1)} PPG</Pill>
           </div>
         </div>
@@ -4106,7 +4141,7 @@ function Header() {
                 marginTop: 4, fontWeight: 500,
               }}
             >
-              A STEM Fair Project — real 2025 NFL data + math = predictions
+              A STEM Fair Project — 2026 rosters + real 2025 stats + math
             </div>
           </div>
         </div>
@@ -4563,7 +4598,7 @@ function ResultScreen({ teamA, teamB, matchup, reset, colorA, colorB, swap }) {
             textAlign: "center", maxWidth: 580, marginTop: 6, lineHeight: 1.5,
           }}
         >
-          Based on 18 factors from the 2025 NFL season, our model gives{" "}
+          Based on 18 factors (2026 rosters, 2025 performance), our model gives{" "}
           <strong style={{ color: COLORS.text }}>{winner.name}</strong>{" "}
           {matchup.confidenceLabel.toLowerCase()} status against{" "}
           <strong style={{ color: COLORS.text }}>{loser.name}</strong>.
